@@ -1,476 +1,418 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BUG_TRACKER_V2_PRO</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import React, { useState, useEffect } from 'react';
+import { Plus, Trash2, ArrowRight, ArrowLeft, AlertCircle, CheckCircle, Clock, X, Loader2 } from 'lucide-react';
+import { initializeApp } from 'firebase/app';
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  onSnapshot, 
+  query, 
+  doc, 
+  updateDoc, 
+  deleteDoc, 
+  serverTimestamp 
+} from 'firebase/firestore';
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 
-        // --- Firebase Configuration ---
-        // Using your specific project credentials
-        const firebaseConfig = {
-            apiKey: "AIzaSyDleZCKN549FWvW1Fq_Qb-NVpYi1lD2ISU",
-            authDomain: "studio-7874976757-9640e.firebaseapp.com",
-            projectId: "studio-7874976757-9640e",
-            storageBucket: "studio-7874976757-9640e.firebasestorage.app",
-            messagingSenderId: "1028425461468",
-            appId: "1:1028425461468:web:cdf8241dd90c3b08fece19"
-        };
+// --- Firebase Configuration & Initialization ---
+const firebaseConfig = typeof __firebase_config !== 'undefined' 
+  ? JSON.parse(__firebase_config) 
+  : {
+      apiKey: "AIzaSyDleZCKN549FWvW1Fq_Qb-NVpYi1lD2ISU",
+      authDomain: "studio-7874976757-9640e.firebaseapp.com",
+      projectId: "studio-7874976757-9640e",
+      storageBucket: "studio-7874976757-9640e.firebasestorage.app",
+      messagingSenderId: "1028425461468",
+      appId: "1:1028425461468:web:cdf8241dd90c3b08fece19"
+    };
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        
-        // Mandatory path structure for the preview environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const COLLECTION_PATH = ['artifacts', appId, 'public', 'data', 'tickets'];
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'ticket-master-default';
 
-        // Global State
-        window.tickets = [];
-        let currentUser = null;
-        let unsubscribe = null;
+// --- Neo Brutalist Components ---
 
-        // --- Auth & Data Flow ---
-        async function initApp() {
-            // Set up auth listener first
-            onAuthStateChanged(auth, (user) => {
-                currentUser = user;
-                if (user) {
-                    setupRealtimeListener(user);
-                } else if (unsubscribe) {
-                    unsubscribe();
-                    unsubscribe = null;
-                }
-            });
+const BrutalButton = ({ children, onClick, color = "bg-white", className = "", icon: Icon, disabled = false }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    className={`
+      ${color} 
+      border-4 border-black 
+      px-4 py-2 
+      font-bold font-mono text-black uppercase tracking-wider
+      shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
+      active:shadow-[0px_0px_0px_0px_rgba(0,0,0,1)]
+      active:translate-x-[4px] active:translate-y-[4px]
+      disabled:opacity-50 disabled:cursor-not-allowed
+      transition-all duration-100
+      flex items-center justify-center gap-2
+      ${className}
+    `}
+  >
+    {Icon && <Icon size={20} strokeWidth={3} />}
+    {children}
+  </button>
+);
 
-            try {
-                // IMPORTANT: We use signInAnonymously instead of signInWithCustomToken 
-                // because the environment's token is project-specific and will mismatch
-                // with your custom firebaseConfig. 
-                // Ensure "Anonymous" is enabled in your Firebase Auth Console.
-                await signInAnonymously(auth);
-            } catch (error) {
-                console.error("Auth Failed:", error);
-                if (window.setStatus) {
-                    window.setStatus("AUTH_ERROR");
-                }
-            }
+const BrutalCard = ({ children, className = "", color = "bg-white" }) => (
+  <div className={`
+    ${color}
+    border-4 border-black
+    p-4
+    shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]
+    ${className}
+  `}>
+    {children}
+  </div>
+);
+
+const BrutalInput = ({ value, onChange, placeholder, className = "", autoFocus = false }) => (
+  <input
+    type="text"
+    value={value}
+    onChange={onChange}
+    placeholder={placeholder}
+    autoFocus={autoFocus}
+    className={`
+      w-full
+      bg-white
+      border-4 border-black
+      p-3
+      font-mono font-bold text-black
+      placeholder-gray-500
+      focus:outline-none focus:bg-yellow-100
+      ${className}
+    `}
+  />
+);
+
+const BrutalTextArea = ({ value, onChange, placeholder, className = "" }) => (
+  <textarea
+    value={value}
+    onChange={onChange}
+    placeholder={placeholder}
+    rows={3}
+    className={`
+      w-full
+      bg-white
+      border-4 border-black
+      p-3
+      font-mono font-bold text-black
+      placeholder-gray-500
+      focus:outline-none focus:bg-yellow-100
+      resize-none
+      ${className}
+    `}
+  />
+);
+
+// --- Main App ---
+
+export default function App() {
+  const [tickets, setTickets] = useState([]);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newTicket, setNewTicket] = useState({ title: '', description: '' });
+
+  // Status Configuration
+  const stages = {
+    report: { 
+      label: 'REPORT', 
+      color: 'bg-red-500', 
+      textColor: 'text-white',
+      borderColor: 'border-red-900',
+      icon: AlertCircle 
+    },
+    doing: { 
+      label: 'DOING', 
+      color: 'bg-yellow-400', 
+      textColor: 'text-black',
+      borderColor: 'border-yellow-700',
+      icon: Clock 
+    },
+    complete: { 
+      label: 'COMPLETE', 
+      color: 'bg-green-500', 
+      textColor: 'text-black',
+      borderColor: 'border-green-800',
+      icon: CheckCircle 
+    }
+  };
+
+  // 1. Initialize Auth
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
         }
+      } catch (error) {
+        console.error("Auth error:", error);
+      }
+    };
+    initAuth();
+    const unsubscribe = onAuthStateChanged(auth, setUser);
+    return () => unsubscribe();
+  }, []);
 
-        function setupRealtimeListener(user) {
-            if (!user) return;
-            
-            if (window.setStatus) window.setStatus("SYNCING...");
-            
-            const q = collection(db, ...COLLECTION_PATH);
-            
-            unsubscribe = onSnapshot(q, (snapshot) => {
-                const tempTickets = [];
-                snapshot.forEach((doc) => {
-                    tempTickets.push({ id: doc.id, ...doc.data() });
-                });
-                
-                window.tickets = tempTickets.sort((a, b) => {
-                     const timeA = a.timestamp?.seconds || 0;
-                     const timeB = b.timestamp?.seconds || 0;
-                     return timeB - timeA;
-                });
-                
-                if (window.render) window.render();
-                if (window.setStatus) window.setStatus("ONLINE");
-            }, (error) => {
-                console.error("Firestore Error:", error);
-                if (window.setStatus) window.setStatus("DB_ERROR");
-            });
-        }
+  // 2. Setup Real-time Listener
+  useEffect(() => {
+    if (!user) return;
 
-        // --- CRUD Operations ---
-        window.handleCreate = async function(e) {
-            e.preventDefault();
-            if (!currentUser) return;
+    const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
+    const q = query(ticketsRef); // RULE 2: Simple query, filter in memory
 
-            const title = document.getElementById('inputTitle').value;
-            const version = document.getElementById('inputVersion').value;
-            const file = document.getElementById('inputFile').value;
-            const details = document.getElementById('inputDetails').value;
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const ticketData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      // Sort by timestamp locally
+      const sorted = ticketData.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+      setTickets(sorted);
+      setLoading(false);
+    }, (error) => {
+      console.error("Firestore listener error:", error);
+      setLoading(false);
+    });
 
-            if (!title) return;
+    return () => unsubscribe();
+  }, [user]);
 
-            try {
-                await addDoc(collection(db, ...COLLECTION_PATH), {
-                    title,
-                    version,
-                    file,
-                    details,
-                    stage: 'report',
-                    timestamp: serverTimestamp(),
-                    createdBy: currentUser.uid
-                });
-                
-                e.target.reset();
-                if (window.innerWidth < 768) toggleForm();
-                if (window.currentView === 'archive') toggleView('board');
-            } catch (err) {
-                console.error("Create Error:", err);
-            }
-        };
+  const addTicket = async () => {
+    if (!newTicket.title.trim() || !user) return;
+    
+    try {
+      const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
+      await addDoc(ticketsRef, {
+        title: newTicket.title,
+        description: newTicket.description,
+        status: 'report',
+        timestamp: serverTimestamp(),
+        createdBy: user.uid
+      });
+      setNewTicket({ title: '', description: '' });
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error("Error adding ticket:", error);
+    }
+  };
 
-        window.deleteTicket = async function(id) {
-            if (!currentUser) return;
-            const modal = document.getElementById('confirmModal');
-            modal.dataset.targetId = id;
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        };
+  const deleteTicket = async (id) => {
+    if (!user) return;
+    try {
+      const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id);
+      await deleteDoc(docRef);
+    } catch (error) {
+      console.error("Error deleting ticket:", error);
+    }
+  };
 
-        window.confirmDelete = async function() {
-            const modal = document.getElementById('confirmModal');
-            const id = modal.dataset.targetId;
-            if (!id || !currentUser) return;
+  const moveTicket = async (id, currentStatus, direction) => {
+    if (!user) return;
+    const statusOrder = ['report', 'doing', 'complete'];
+    const currentIndex = statusOrder.indexOf(currentStatus);
+    let newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
+    
+    if (newIndex < 0 || newIndex >= statusOrder.length) return;
 
-            try {
-                await deleteDoc(doc(db, ...COLLECTION_PATH, id));
-                window.closeModal();
-            } catch (err) {
-                console.error("Delete Error:", err);
-            }
-        };
+    try {
+      const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id);
+      await updateDoc(docRef, {
+        status: statusOrder[newIndex]
+      });
+    } catch (error) {
+      console.error("Error moving ticket:", error);
+    }
+  };
 
-        window.closeModal = function() {
-            const modal = document.getElementById('confirmModal');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-            delete modal.dataset.targetId;
-        };
+  const getTicketsByStatus = (status) => tickets.filter(t => t.status === status);
 
-        window.archiveTicket = async function(id) {
-            if (!currentUser) return;
-            try {
-                await updateDoc(doc(db, ...COLLECTION_PATH, id), {
-                    stage: 'archived'
-                });
-            } catch (err) {
-                console.error("Archive Error:", err);
-            }
-        };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f0f0f0] flex flex-col items-center justify-center p-4">
+        <BrutalCard className="flex items-center gap-4 bg-yellow-300">
+          <Loader2 className="animate-spin" size={32} />
+          <h2 className="text-2xl font-black uppercase">Syncing Boards...</h2>
+        </BrutalCard>
+      </div>
+    );
+  }
 
-        window.restoreTicket = async function(id) {
-            if (!currentUser) return;
-            try {
-                await updateDoc(doc(db, ...COLLECTION_PATH, id), {
-                    stage: 'complete'
-                });
-            } catch (err) {
-                console.error("Restore Error:", err);
-            }
-        };
-
-        window.moveTicket = async function(id, direction, currentStage) {
-            if (!currentUser) return;
-            
-            let nextStage = currentStage;
-            if (currentStage === 'report' && direction === 'next') nextStage = 'doing';
-            else if (currentStage === 'doing' && direction === 'next') nextStage = 'complete';
-            else if (currentStage === 'doing' && direction === 'prev') nextStage = 'report';
-            else if (currentStage === 'complete' && direction === 'prev') nextStage = 'doing';
-
-            if (nextStage !== currentStage) {
-                try {
-                    await updateDoc(doc(db, ...COLLECTION_PATH, id), {
-                        stage: nextStage
-                    });
-                } catch (err) {
-                    console.error("Move Error:", err);
-                }
-            }
-        };
-
-        initApp();
-    </script>
-    <style>
-        :root {
-            --c-red: #ff2a2a;
-            --c-blue: #2a2aff;
-            --c-green: #2aff2a;
-            --c-yellow: #ffea2a;
-            --c-black: #000000;
-            --c-white: #ffffff;
-            --border-thick: 4px solid var(--c-black);
-            --shadow-hard: 6px 6px 0px 0px var(--c-black);
-        }
-
-        body {
-            font-family: 'Courier New', Courier, monospace;
-            background-color: var(--c-white);
-            color: var(--c-black);
-            overflow-x: hidden;
-        }
-
-        .neo-box {
-            border: var(--border-thick);
-            box-shadow: var(--shadow-hard);
-            transition: all 0.1s;
-            background: white;
-        }
-
-        .neo-btn {
-            border: var(--border-thick);
-            box-shadow: var(--shadow-hard);
-            font-weight: 900;
-            text-transform: uppercase;
-            cursor: pointer;
-            padding: 10px 20px;
-            transition: all 0.1s;
-        }
-
-        .neo-btn:active {
-            transform: translate(4px, 4px);
-            box-shadow: 0px 0px 0px 0px var(--c-black);
-        }
-
-        .neo-input {
-            border: var(--border-thick);
-            background: #eee;
-            padding: 10px;
-            width: 100%;
-            font-family: inherit;
-            font-weight: bold;
-            outline: none;
-        }
-
-        .neo-input:focus {
-            background: #fff;
-            box-shadow: 4px 4px 0px 0px var(--c-black);
-        }
-
-        .bg-raw-red { background-color: var(--c-red); }
-        .bg-raw-blue { background-color: var(--c-blue); color: white; }
-        .bg-raw-green { background-color: var(--c-green); }
-        .bg-raw-yellow { background-color: var(--c-yellow); }
-        
-        .stage-column { min-height: 200px; }
-
-        ::-webkit-scrollbar { width: 12px; background: var(--c-black); }
-        ::-webkit-scrollbar-thumb { background: var(--c-white); border: 2px solid var(--c-black); }
-    </style>
-</head>
-<body class="min-h-screen flex flex-col">
-
-    <!-- Header -->
-    <header class="border-b-4 border-black p-4 flex justify-between items-center bg-white sticky top-0 z-50">
-        <div class="flex items-center gap-4">
-            <h1 onclick="toggleView('board')" class="text-2xl md:text-5xl font-black uppercase tracking-tighter bg-black text-white px-2 py-1 transform -skew-x-12 cursor-pointer select-none">
-                ERR_TRK_V2
-            </h1>
+  return (
+    <div className="min-h-screen bg-[#f0f0f0] text-black font-mono p-4 md:p-8 overflow-x-hidden">
+      
+      {/* Header */}
+      <div className="max-w-7xl mx-auto mb-12 flex flex-col md:flex-row justify-between items-center gap-6">
+        <div className="bg-black text-white p-4 border-4 border-black shadow-[8px_8px_0px_0px_#FF00FF] transform -rotate-1">
+          <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter">
+            TICKET_MSTR
+          </h1>
         </div>
+        
+        <BrutalButton 
+          onClick={() => setIsModalOpen(true)} 
+          color="bg-cyan-400" 
+          icon={Plus}
+          className="w-full md:w-auto text-xl py-4 hover:bg-cyan-300"
+        >
+          New Ticket
+        </BrutalButton>
+      </div>
 
-        <div class="flex items-center gap-4">
-            <div class="hidden md:block font-bold text-xs bg-raw-yellow border-2 border-black p-1 px-3">
-                STATUS: <span id="status-text">CONNECTING</span>
+      {/* User Status Bar */}
+      <div className="max-w-7xl mx-auto mb-6 flex justify-end">
+        <div className="bg-white border-2 border-black px-3 py-1 text-xs font-bold uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+          USER: {user?.uid || 'GUEST'}
+        </div>
+      </div>
+
+      {/* Kanban Board */}
+      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
+        {Object.keys(stages).map((status) => {
+          const stage = stages[status];
+          const stageTickets = getTicketsByStatus(status);
+          const Icon = stage.icon;
+
+          return (
+            <div key={status} className="flex flex-col gap-4">
+              {/* Column Header */}
+              <div className={`
+                ${stage.color} 
+                border-4 border-black 
+                p-4 
+                shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]
+                flex items-center justify-between
+              `}>
+                <h2 className={`text-2xl font-black uppercase flex items-center gap-3 ${stage.textColor}`}>
+                  <Icon size={28} strokeWidth={3} />
+                  {stage.label}
+                </h2>
+                <span className="bg-black text-white px-3 py-1 font-bold border-2 border-white">
+                  {stageTickets.length}
+                </span>
+              </div>
+
+              {/* Ticket List */}
+              <div className="flex flex-col gap-6">
+                {stageTickets.length === 0 && (
+                  <div className="border-4 border-dashed border-gray-400 p-8 text-center text-gray-500 font-bold uppercase">
+                    Empty Column
+                  </div>
+                )}
+                
+                {stageTickets.map((ticket) => (
+                  <BrutalCard key={ticket.id} className="relative group hover:-translate-y-1 transition-transform duration-200">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-[10px] font-bold bg-black text-white px-2 py-1">
+                        ID_{ticket.id.toString().slice(-6)}
+                      </span>
+                      <button 
+                        onClick={() => deleteTicket(ticket.id)}
+                        className="text-black hover:text-red-600 transition-colors p-1"
+                      >
+                        <Trash2 size={20} strokeWidth={3} />
+                      </button>
+                    </div>
+                    
+                    <h3 className="text-xl font-black leading-tight mb-2 uppercase break-words">
+                      {ticket.title}
+                    </h3>
+                    
+                    <p className="text-sm font-bold text-gray-700 mb-6 break-words">
+                      {ticket.description}
+                    </p>
+
+                    {/* Actions */}
+                    <div className="flex justify-between items-center border-t-4 border-black pt-4 -mx-4 px-4 bg-gray-50 -mb-4 pb-4">
+                      {status !== 'report' ? (
+                        <button
+                          onClick={() => moveTicket(ticket.id, ticket.status, 'prev')}
+                          className="bg-white border-2 border-black p-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-100 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+                          title="Move Back"
+                        >
+                          <ArrowLeft size={20} strokeWidth={3} />
+                        </button>
+                      ) : <div />}
+
+                      {status !== 'complete' ? (
+                        <button
+                          onClick={() => moveTicket(ticket.id, ticket.status, 'next')}
+                          className="bg-black text-white border-2 border-black p-2 shadow-[2px_2px_0px_0px_#888] hover:bg-gray-800 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+                          title="Move Forward"
+                        >
+                          <ArrowRight size={20} strokeWidth={3} />
+                        </button>
+                      ) : <div />}
+                    </div>
+                  </BrutalCard>
+                ))}
+              </div>
             </div>
+          );
+        })}
+      </div>
 
-            <button onclick="toggleView('archive')" class="neo-btn bg-white p-2 flex items-center justify-center h-12 w-12" title="View Archive">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-                    <path stroke-linecap="square" stroke-linejoin="miter" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                </svg>
+      {/* Create Ticket Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-white border-4 border-black shadow-[16px_16px_0px_0px_#FF0000] w-full max-w-md p-6 relative animate-in fade-in zoom-in duration-200">
+            <button 
+              onClick={() => setIsModalOpen(false)}
+              className="absolute top-4 right-4 text-black hover:rotate-90 transition-transform duration-200"
+            >
+              <X size={32} strokeWidth={4} />
             </button>
+            
+            <h2 className="text-3xl font-black uppercase mb-8 bg-yellow-400 inline-block border-4 border-black px-2 transform -rotate-2">
+              New Issue
+            </h2>
+            
+            <div className="flex flex-col gap-4">
+              <div>
+                <label className="block font-black uppercase mb-2">Subject</label>
+                <BrutalInput 
+                  placeholder="WHAT'S BROKEN?" 
+                  value={newTicket.title}
+                  onChange={(e) => setNewTicket({...newTicket, title: e.target.value})}
+                  autoFocus
+                />
+              </div>
+              
+              <div>
+                <label className="block font-black uppercase mb-2">Details</label>
+                <BrutalTextArea 
+                  placeholder="GIVE ME THE DEETS..."
+                  value={newTicket.description}
+                  onChange={(e) => setNewTicket({...newTicket, description: e.target.value})}
+                />
+              </div>
 
-            <button onclick="toggleForm()" class="neo-btn bg-raw-blue md:hidden">+ NEW</button>
+              <div className="mt-4 flex gap-4">
+                <BrutalButton 
+                  onClick={addTicket} 
+                  color="bg-black" 
+                  className="w-full text-white hover:bg-gray-800"
+                >
+                  SUBMIT REPORT
+                </BrutalButton>
+              </div>
+            </div>
+          </div>
         </div>
-    </header>
+      )}
 
-    <main class="flex-grow flex flex-col md:flex-row relative">
-        
-        <!-- Sidebar -->
-        <aside id="ticketFormPanel" class="w-full md:w-1/4 border-b-4 md:border-b-0 md:border-r-4 border-black p-6 bg-gray-50 flex-shrink-0 relative hidden md:block">
-            <div class="sticky top-24">
-                <h2 class="text-2xl font-black mb-6 uppercase underline decoration-4 decoration-red-500">Input_Data</h2>
-                <form id="ticketForm" onsubmit="handleCreate(event)" class="space-y-4">
-                    <div>
-                        <label class="block font-black text-sm mb-1 bg-black text-white inline-block px-1">BUG_SUMMARY</label>
-                        <input type="text" id="inputTitle" placeholder="Short description..." class="neo-input" required>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block font-black text-sm mb-1">VERSION</label>
-                            <input type="text" id="inputVersion" placeholder="v1.0" class="neo-input" required>
-                        </div>
-                        <div>
-                            <label class="block font-black text-sm mb-1">FILE</label>
-                            <input type="text" id="inputFile" placeholder="index.js" class="neo-input" required>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block font-black text-sm mb-1">LOGS/DETAILS</label>
-                        <textarea id="inputDetails" rows="4" placeholder="Paste error logs..." class="neo-input resize-none"></textarea>
-                    </div>
-                    <button type="submit" class="neo-btn bg-raw-red w-full text-white text-xl mt-4">INIT_TICKET()</button>
-                </form>
-            </div>
-            <button onclick="toggleForm()" class="md:hidden absolute top-2 right-2 font-bold text-xl border-2 border-black bg-white w-8 h-8 flex items-center justify-center">X</button>
-        </aside>
-
-        <!-- Kanban Board -->
-        <section id="boardView" class="flex-grow p-4 md:p-8 bg-gray-100 overflow-x-auto w-full">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 h-full min-w-[300px]">
-                <div class="flex flex-col">
-                    <div class="neo-box bg-raw-red p-3 mb-4 flex justify-between items-center">
-                        <h3 class="font-black text-white text-xl tracking-widest uppercase">Report</h3>
-                        <span id="count-report" class="bg-black text-white px-2 py-0.5 font-mono">0</span>
-                    </div>
-                    <div id="col-report" class="stage-column space-y-4 pb-12"></div>
-                </div>
-                <div class="flex flex-col">
-                    <div class="neo-box bg-raw-yellow p-3 mb-4 flex justify-between items-center">
-                        <h3 class="font-black text-black text-xl tracking-widest uppercase">Doing</h3>
-                        <span id="count-doing" class="bg-black text-white px-2 py-0.5 font-mono">0</span>
-                    </div>
-                    <div id="col-doing" class="stage-column space-y-4 pb-12"></div>
-                </div>
-                <div class="flex flex-col">
-                    <div class="neo-box bg-raw-green p-3 mb-4 flex justify-between items-center">
-                        <h3 class="font-black text-black text-xl tracking-widest uppercase">Complete</h3>
-                        <span id="count-complete" class="bg-black text-white px-2 py-0.5 font-mono">0</span>
-                    </div>
-                    <div id="col-complete" class="stage-column space-y-4 pb-12"></div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Archive View -->
-        <section id="archiveView" class="hidden flex-grow p-4 md:p-8 bg-gray-200 w-full">
-            <div class="max-w-4xl mx-auto">
-                <div class="bg-black text-white p-4 mb-6 border-b-4 border-black transform -rotate-1">
-                    <h2 class="text-3xl md:text-4xl font-black uppercase">Archive // Graveyard</h2>
-                    <p class="font-mono text-sm mt-1">OLD LOGS RETRIEVED FROM DISK.</p>
-                </div>
-                <div id="archive-list" class="grid grid-cols-1 gap-4"></div>
-                <div id="archive-empty" class="hidden text-center p-10 opacity-50 font-black text-xl">NO_ARCHIVED_DATA</div>
-            </div>
-        </section>
-    </main>
-
-    <!-- Custom Delete Modal -->
-    <div id="confirmModal" class="fixed inset-0 bg-black/80 z-[100] hidden items-center justify-center p-4">
-        <div class="neo-box bg-white p-8 max-w-sm w-full text-center">
-            <h2 class="text-3xl font-black mb-4 uppercase text-raw-red">Confirm Delete?</h2>
-            <p class="font-bold mb-8">THIS ACTION WIPES THE TICKET FROM THE CLOUD FOREVER.</p>
-            <div class="flex gap-4">
-                <button onclick="confirmDelete()" class="neo-btn bg-raw-red text-white flex-1">YES_DELETE</button>
-                <button onclick="closeModal()" class="neo-btn bg-white flex-1">CANCEL</button>
-            </div>
+      {/* Footer Decoration */}
+      <div className="fixed bottom-4 left-4 hidden lg:block opacity-30 pointer-events-none z-0">
+        <div className="text-8xl font-black text-gray-400 transform -rotate-6">
+          LIVE_DB
         </div>
+      </div>
     </div>
-
-    <div id="mobileFab" class="md:hidden fixed bottom-6 right-6 z-40">
-        <button onclick="toggleForm()" class="neo-btn bg-black text-white rounded-full w-16 h-16 flex items-center justify-center text-3xl pb-2 shadow-xl border-white border-4">+</button>
-    </div>
-
-    <script>
-        window.currentView = 'board';
-        const formPanel = document.getElementById('ticketFormPanel');
-        const boardView = document.getElementById('boardView');
-        const archiveView = document.getElementById('archiveView');
-        const mobileFab = document.getElementById('mobileFab');
-        const archiveList = document.getElementById('archive-list');
-        const archiveEmpty = document.getElementById('archive-empty');
-        const statusText = document.getElementById('status-text');
-        const cols = { report: document.getElementById('col-report'), doing: document.getElementById('col-doing'), complete: document.getElementById('col-complete') };
-        const counts = { report: document.getElementById('count-report'), doing: document.getElementById('count-doing'), complete: document.getElementById('count-complete') };
-
-        window.setStatus = function(msg) { statusText.innerText = msg; }
-
-        window.toggleView = function(view) {
-            window.currentView = view;
-            if (view === 'archive') {
-                boardView.classList.add('hidden');
-                formPanel.classList.add('hidden');
-                if(mobileFab) mobileFab.classList.add('hidden');
-                archiveView.classList.remove('hidden');
-            } else {
-                boardView.classList.remove('hidden');
-                if (window.innerWidth >= 768) formPanel.classList.remove('hidden');
-                if(mobileFab) mobileFab.classList.remove('hidden');
-                archiveView.classList.add('hidden');
-            }
-            if(window.render) window.render();
-        }
-
-        window.toggleForm = function() {
-            formPanel.classList.toggle('hidden');
-            formPanel.classList.toggle('fixed');
-            formPanel.classList.toggle('inset-0');
-            formPanel.classList.toggle('z-50');
-            formPanel.classList.toggle('w-full');
-        }
-
-        window.render = function() {
-            if (!window.tickets) return;
-            cols.report.innerHTML = ''; cols.doing.innerHTML = ''; cols.complete.innerHTML = ''; archiveList.innerHTML = '';
-            let countMap = { report: 0, doing: 0, complete: 0 };
-            let hasArchived = false;
-
-            window.tickets.forEach(ticket => {
-                if (ticket.stage === 'archived') {
-                    hasArchived = true;
-                    if (window.currentView === 'archive') archiveList.appendChild(createArchiveCard(ticket));
-                } else {
-                    if (countMap.hasOwnProperty(ticket.stage)) {
-                        countMap[ticket.stage]++;
-                        if (window.currentView === 'board') cols[ticket.stage].appendChild(createBoardCard(ticket));
-                    }
-                }
-            });
-
-            counts.report.innerText = countMap.report;
-            counts.doing.innerText = countMap.doing;
-            counts.complete.innerText = countMap.complete;
-            if (window.currentView === 'archive') archiveEmpty.classList.toggle('hidden', hasArchived);
-        }
-
-        function createBoardCard(t) {
-            const div = document.createElement('div');
-            div.className = 'neo-box p-4 flex flex-col';
-            let actions = '';
-            if (t.stage === 'report') {
-                actions = `<button onclick="deleteTicket('${t.id}')" class="font-bold hover:bg-red-500 hover:text-white px-2 border-2 border-black">DELETE</button>
-                           <button onclick="moveTicket('${t.id}', 'next', 'report')" class="neo-btn bg-raw-yellow text-xs py-1 px-2 ml-auto">START -></button>`;
-            } else if (t.stage === 'doing') {
-                actions = `<button onclick="moveTicket('${t.id}', 'prev', 'doing')" class="neo-btn bg-white text-xs py-1 px-2"><-</button>
-                           <button onclick="moveTicket('${t.id}', 'next', 'doing')" class="neo-btn bg-raw-green text-xs py-1 px-2 ml-auto">DONE -></button>`;
-            } else if (t.stage === 'complete') {
-                actions = `<button onclick="moveTicket('${t.id}', 'prev', 'complete')" class="neo-btn bg-raw-yellow text-xs py-1 px-2"><- RETRY</button>
-                           <button onclick="archiveTicket('${t.id}')" class="font-bold bg-black text-white px-2 ml-auto hover:bg-gray-800 border-2 border-black">ARCHIVE</button>`;
-            }
-
-            div.innerHTML = `
-                <div class="border-b-2 border-black pb-2 mb-2 flex justify-between items-start">
-                    <div><span class="bg-black text-white text-xs px-1 font-bold">${t.version || 'v?'}</span>
-                    <h4 class="font-black text-lg uppercase leading-tight mt-1">${t.title}</h4></div>
-                    <div class="text-[10px] font-bold text-gray-500">${t.file}</div>
-                </div>
-                <p class="text-sm font-bold text-gray-700 mb-4 whitespace-pre-wrap">${t.details || ''}</p>
-                <div class="flex items-center gap-2 mt-auto pt-2 border-t-2 border-dashed border-gray-300">${actions}</div>`;
-            return div;
-        }
-
-        function createArchiveCard(t) {
-            const div = document.createElement('div');
-            div.className = 'neo-box p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-gray-50 opacity-80';
-            const time = t.timestamp?.seconds ? new Date(t.timestamp.seconds * 1000).toLocaleString() : '...';
-            div.innerHTML = `
-                <div><div class="flex items-center gap-2 mb-1"><span class="bg-gray-400 text-white text-xs px-1 font-bold line-through">ARCHIVED</span>
-                <span class="font-mono text-xs text-gray-500">${time}</span></div>
-                <h4 class="font-black text-xl line-through decoration-black">${t.title}</h4>
-                <p class="text-xs font-mono text-gray-500">${t.file} // ${t.version}</p></div>
-                <div class="flex gap-2"><button onclick="restoreTicket('${t.id}')" class="neo-btn bg-white text-xs">RESTORE</button>
-                <button onclick="deleteTicket('${t.id}')" class="neo-btn bg-raw-red text-white text-xs">DELETE</button></div>`;
-            return div;
-        }
-    </script>
-</body>
-</html>
+  );
+}
