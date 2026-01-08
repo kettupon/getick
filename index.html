@@ -1,418 +1,299 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, ArrowRight, ArrowLeft, AlertCircle, CheckCircle, Clock, X, Loader2 } from 'lucide-react';
-import { initializeApp } from 'firebase/app';
-import { 
-  getFirestore, 
-  collection, 
-  addDoc, 
-  onSnapshot, 
-  query, 
-  doc, 
-  updateDoc, 
-  deleteDoc, 
-  serverTimestamp 
-} from 'firebase/firestore';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
-
-// --- Firebase Configuration & Initialization ---
-const firebaseConfig = typeof __firebase_config !== 'undefined' 
-  ? JSON.parse(__firebase_config) 
-  : {
-      apiKey: "AIzaSyDleZCKN549FWvW1Fq_Qb-NVpYi1lD2ISU",
-      authDomain: "studio-7874976757-9640e.firebaseapp.com",
-      projectId: "studio-7874976757-9640e",
-      storageBucket: "studio-7874976757-9640e.firebasestorage.app",
-      messagingSenderId: "1028425461468",
-      appId: "1:1028425461468:web:cdf8241dd90c3b08fece19"
-    };
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'ticket-master-default';
-
-// --- Neo Brutalist Components ---
-
-const BrutalButton = ({ children, onClick, color = "bg-white", className = "", icon: Icon, disabled = false }) => (
-  <button
-    onClick={onClick}
-    disabled={disabled}
-    className={`
-      ${color} 
-      border-4 border-black 
-      px-4 py-2 
-      font-bold font-mono text-black uppercase tracking-wider
-      shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
-      active:shadow-[0px_0px_0px_0px_rgba(0,0,0,1)]
-      active:translate-x-[4px] active:translate-y-[4px]
-      disabled:opacity-50 disabled:cursor-not-allowed
-      transition-all duration-100
-      flex items-center justify-center gap-2
-      ${className}
-    `}
-  >
-    {Icon && <Icon size={20} strokeWidth={3} />}
-    {children}
-  </button>
-);
-
-const BrutalCard = ({ children, className = "", color = "bg-white" }) => (
-  <div className={`
-    ${color}
-    border-4 border-black
-    p-4
-    shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]
-    ${className}
-  `}>
-    {children}
-  </div>
-);
-
-const BrutalInput = ({ value, onChange, placeholder, className = "", autoFocus = false }) => (
-  <input
-    type="text"
-    value={value}
-    onChange={onChange}
-    placeholder={placeholder}
-    autoFocus={autoFocus}
-    className={`
-      w-full
-      bg-white
-      border-4 border-black
-      p-3
-      font-mono font-bold text-black
-      placeholder-gray-500
-      focus:outline-none focus:bg-yellow-100
-      ${className}
-    `}
-  />
-);
-
-const BrutalTextArea = ({ value, onChange, placeholder, className = "" }) => (
-  <textarea
-    value={value}
-    onChange={onChange}
-    placeholder={placeholder}
-    rows={3}
-    className={`
-      w-full
-      bg-white
-      border-4 border-black
-      p-3
-      font-mono font-bold text-black
-      placeholder-gray-500
-      focus:outline-none focus:bg-yellow-100
-      resize-none
-      ${className}
-    `}
-  />
-);
-
-// --- Main App ---
-
-export default function App() {
-  const [tickets, setTickets] = useState([]);
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newTicket, setNewTicket] = useState({ title: '', description: '' });
-
-  // Status Configuration
-  const stages = {
-    report: { 
-      label: 'REPORT', 
-      color: 'bg-red-500', 
-      textColor: 'text-white',
-      borderColor: 'border-red-900',
-      icon: AlertCircle 
-    },
-    doing: { 
-      label: 'DOING', 
-      color: 'bg-yellow-400', 
-      textColor: 'text-black',
-      borderColor: 'border-yellow-700',
-      icon: Clock 
-    },
-    complete: { 
-      label: 'COMPLETE', 
-      color: 'bg-green-500', 
-      textColor: 'text-black',
-      borderColor: 'border-green-800',
-      icon: CheckCircle 
-    }
-  };
-
-  // 1. Initialize Auth
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TICKET_MSTR | Real-time Kanban</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React and Babel for JSX -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+        body { 
+            font-family: 'Space Mono', monospace; 
+            background-color: #f0f0f0;
         }
-      } catch (error) {
-        console.error("Auth error:", error);
-      }
-    };
-    initAuth();
-    const unsubscribe = onAuthStateChanged(auth, setUser);
-    return () => unsubscribe();
-  }, []);
-
-  // 2. Setup Real-time Listener
-  useEffect(() => {
-    if (!user) return;
-
-    const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
-    const q = query(ticketsRef); // RULE 2: Simple query, filter in memory
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const ticketData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      // Sort by timestamp locally
-      const sorted = ticketData.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-      setTickets(sorted);
-      setLoading(false);
-    }, (error) => {
-      console.error("Firestore listener error:", error);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [user]);
-
-  const addTicket = async () => {
-    if (!newTicket.title.trim() || !user) return;
-    
-    try {
-      const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
-      await addDoc(ticketsRef, {
-        title: newTicket.title,
-        description: newTicket.description,
-        status: 'report',
-        timestamp: serverTimestamp(),
-        createdBy: user.uid
-      });
-      setNewTicket({ title: '', description: '' });
-      setIsModalOpen(false);
-    } catch (error) {
-      console.error("Error adding ticket:", error);
-    }
-  };
-
-  const deleteTicket = async (id) => {
-    if (!user) return;
-    try {
-      const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id);
-      await deleteDoc(docRef);
-    } catch (error) {
-      console.error("Error deleting ticket:", error);
-    }
-  };
-
-  const moveTicket = async (id, currentStatus, direction) => {
-    if (!user) return;
-    const statusOrder = ['report', 'doing', 'complete'];
-    const currentIndex = statusOrder.indexOf(currentStatus);
-    let newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
-    
-    if (newIndex < 0 || newIndex >= statusOrder.length) return;
-
-    try {
-      const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id);
-      await updateDoc(docRef, {
-        status: statusOrder[newIndex]
-      });
-    } catch (error) {
-      console.error("Error moving ticket:", error);
-    }
-  };
-
-  const getTicketsByStatus = (status) => tickets.filter(t => t.status === status);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#f0f0f0] flex flex-col items-center justify-center p-4">
-        <BrutalCard className="flex items-center gap-4 bg-yellow-300">
-          <Loader2 className="animate-spin" size={32} />
-          <h2 className="text-2xl font-black uppercase">Syncing Boards...</h2>
-        </BrutalCard>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-[#f0f0f0] text-black font-mono p-4 md:p-8 overflow-x-hidden">
-      
-      {/* Header */}
-      <div className="max-w-7xl mx-auto mb-12 flex flex-col md:flex-row justify-between items-center gap-6">
-        <div className="bg-black text-white p-4 border-4 border-black shadow-[8px_8px_0px_0px_#FF00FF] transform -rotate-1">
-          <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter">
-            TICKET_MSTR
-          </h1>
-        </div>
+        .brutal-shadow { box-shadow: 4px 4px 0px 0px rgba(0,0,0,1); }
+        .brutal-shadow-lg { box-shadow: 8px 8px 0px 0px rgba(0,0,0,1); }
+        .brutal-shadow-xl { box-shadow: 16px 16px 0px 0px rgba(0,0,0,1); }
         
-        <BrutalButton 
-          onClick={() => setIsModalOpen(true)} 
-          color="bg-cyan-400" 
-          icon={Plus}
-          className="w-full md:w-auto text-xl py-4 hover:bg-cyan-300"
-        >
-          New Ticket
-        </BrutalButton>
-      </div>
+        .brutal-btn-active:active { 
+            transform: translate(4px, 4px); 
+            box-shadow: 0px 0px 0px 0px rgba(0,0,0,1); 
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
 
-      {/* User Status Bar */}
-      <div className="max-w-7xl mx-auto mb-6 flex justify-end">
-        <div className="bg-white border-2 border-black px-3 py-1 text-xs font-bold uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-          USER: {user?.uid || 'GUEST'}
-        </div>
-      </div>
+    <!-- Added data-type="module" to fix the "require" ReferenceError by allowing ES imports -->
+    <script type="text/babel" data-type="module">
+        const { useState, useEffect, useMemo } = React;
 
-      {/* Kanban Board */}
-      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
-        {Object.keys(stages).map((status) => {
-          const stage = stages[status];
-          const stageTickets = getTicketsByStatus(status);
-          const Icon = stage.icon;
+        // Import Firebase via ESM - Supported in browsers when using data-type="module" or type="module"
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, doc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-          return (
-            <div key={status} className="flex flex-col gap-4">
-              {/* Column Header */}
-              <div className={`
-                ${stage.color} 
-                border-4 border-black 
-                p-4 
-                shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]
-                flex items-center justify-between
-              `}>
-                <h2 className={`text-2xl font-black uppercase flex items-center gap-3 ${stage.textColor}`}>
-                  <Icon size={28} strokeWidth={3} />
-                  {stage.label}
-                </h2>
-                <span className="bg-black text-white px-3 py-1 font-bold border-2 border-white">
-                  {stageTickets.length}
-                </span>
-              </div>
+        // --- Firebase Constants ---
+        const firebaseConfig = typeof __firebase_config !== 'undefined' 
+            ? JSON.parse(__firebase_config) 
+            : {
+                apiKey: "AIzaSyDleZCKN549FWvW1Fq_Qb-NVpYi1lD2ISU",
+                authDomain: "studio-7874976757-9640e.firebaseapp.com",
+                projectId: "studio-7874976757-9640e",
+                storageBucket: "studio-7874976757-9640e.firebasestorage.app",
+                messagingSenderId: "1028425461468",
+                appId: "1:1028425461468:web:cdf8241dd90c3b08fece19"
+            };
 
-              {/* Ticket List */}
-              <div className="flex flex-col gap-6">
-                {stageTickets.length === 0 && (
-                  <div className="border-4 border-dashed border-gray-400 p-8 text-center text-gray-500 font-bold uppercase">
-                    Empty Column
-                  </div>
-                )}
-                
-                {stageTickets.map((ticket) => (
-                  <BrutalCard key={ticket.id} className="relative group hover:-translate-y-1 transition-transform duration-200">
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="text-[10px] font-bold bg-black text-white px-2 py-1">
-                        ID_{ticket.id.toString().slice(-6)}
-                      </span>
-                      <button 
-                        onClick={() => deleteTicket(ticket.id)}
-                        className="text-black hover:text-red-600 transition-colors p-1"
-                      >
-                        <Trash2 size={20} strokeWidth={3} />
-                      </button>
-                    </div>
-                    
-                    <h3 className="text-xl font-black leading-tight mb-2 uppercase break-words">
-                      {ticket.title}
-                    </h3>
-                    
-                    <p className="text-sm font-bold text-gray-700 mb-6 break-words">
-                      {ticket.description}
-                    </p>
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'ticket-master-html-v2';
 
-                    {/* Actions */}
-                    <div className="flex justify-between items-center border-t-4 border-black pt-4 -mx-4 px-4 bg-gray-50 -mb-4 pb-4">
-                      {status !== 'report' ? (
-                        <button
-                          onClick={() => moveTicket(ticket.id, ticket.status, 'prev')}
-                          className="bg-white border-2 border-black p-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-100 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
-                          title="Move Back"
-                        >
-                          <ArrowLeft size={20} strokeWidth={3} />
-                        </button>
-                      ) : <div />}
+        // --- Icons (Inline SVGs) ---
+        const IconPlus = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>;
+        const IconTrash = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>;
+        const IconRight = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>;
+        const IconLeft = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>;
+        const IconAlert = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>;
+        const IconCheck = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>;
+        const IconClock = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>;
+        const IconX = () => <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
 
-                      {status !== 'complete' ? (
-                        <button
-                          onClick={() => moveTicket(ticket.id, ticket.status, 'next')}
-                          className="bg-black text-white border-2 border-black p-2 shadow-[2px_2px_0px_0px_#888] hover:bg-gray-800 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
-                          title="Move Forward"
-                        >
-                          <ArrowRight size={20} strokeWidth={3} />
-                        </button>
-                      ) : <div />}
-                    </div>
-                  </BrutalCard>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Create Ticket Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-          <div className="bg-white border-4 border-black shadow-[16px_16px_0px_0px_#FF0000] w-full max-w-md p-6 relative animate-in fade-in zoom-in duration-200">
-            <button 
-              onClick={() => setIsModalOpen(false)}
-              className="absolute top-4 right-4 text-black hover:rotate-90 transition-transform duration-200"
+        // --- UI Components ---
+        const BrutalButton = ({ children, onClick, color = "bg-white", className = "", icon: Icon, disabled = false }) => (
+            <button
+                onClick={onClick}
+                disabled={disabled}
+                className={`${color} border-4 border-black px-4 py-2 font-bold font-mono text-black uppercase tracking-wider brutal-shadow brutal-btn-active disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-100 flex items-center justify-center gap-2 ${className}`}
             >
-              <X size={32} strokeWidth={4} />
+                {Icon && <Icon />}
+                {children}
             </button>
-            
-            <h2 className="text-3xl font-black uppercase mb-8 bg-yellow-400 inline-block border-4 border-black px-2 transform -rotate-2">
-              New Issue
-            </h2>
-            
-            <div className="flex flex-col gap-4">
-              <div>
-                <label className="block font-black uppercase mb-2">Subject</label>
-                <BrutalInput 
-                  placeholder="WHAT'S BROKEN?" 
-                  value={newTicket.title}
-                  onChange={(e) => setNewTicket({...newTicket, title: e.target.value})}
-                  autoFocus
-                />
-              </div>
-              
-              <div>
-                <label className="block font-black uppercase mb-2">Details</label>
-                <BrutalTextArea 
-                  placeholder="GIVE ME THE DEETS..."
-                  value={newTicket.description}
-                  onChange={(e) => setNewTicket({...newTicket, description: e.target.value})}
-                />
-              </div>
+        );
 
-              <div className="mt-4 flex gap-4">
-                <BrutalButton 
-                  onClick={addTicket} 
-                  color="bg-black" 
-                  className="w-full text-white hover:bg-gray-800"
-                >
-                  SUBMIT REPORT
-                </BrutalButton>
-              </div>
+        const BrutalCard = ({ children, className = "", color = "bg-white" }) => (
+            <div className={`${color} border-4 border-black p-4 brutal-shadow-lg ${className}`}>
+                {children}
             </div>
-          </div>
-        </div>
-      )}
+        );
 
-      {/* Footer Decoration */}
-      <div className="fixed bottom-4 left-4 hidden lg:block opacity-30 pointer-events-none z-0">
-        <div className="text-8xl font-black text-gray-400 transform -rotate-6">
-          LIVE_DB
-        </div>
-      </div>
-    </div>
-  );
-}
+        const BrutalInput = ({ value, onChange, placeholder, className = "", autoFocus = false }) => (
+            <input
+                type="text"
+                value={value}
+                onChange={onChange}
+                placeholder={placeholder}
+                autoFocus={autoFocus}
+                className={`w-full bg-white border-4 border-black p-3 font-mono font-bold text-black placeholder-gray-500 focus:outline-none focus:bg-yellow-100 ${className}`}
+            />
+        );
+
+        const BrutalTextArea = ({ value, onChange, placeholder, className = "" }) => (
+            <textarea
+                value={value}
+                onChange={onChange}
+                placeholder={placeholder}
+                rows={3}
+                className={`w-full bg-white border-4 border-black p-3 font-mono font-bold text-black placeholder-gray-500 focus:outline-none focus:bg-yellow-100 resize-none ${className}`}
+            />
+        );
+
+        // --- Main App Component ---
+        function App() {
+            const [tickets, setTickets] = useState([]);
+            const [user, setUser] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            const [newTicket, setNewTicket] = useState({ title: '', description: '' });
+
+            const stages = {
+                report: { label: 'REPORT', color: 'bg-red-500', textColor: 'text-white', icon: IconAlert },
+                doing: { label: 'DOING', color: 'bg-yellow-400', textColor: 'text-black', icon: IconClock },
+                complete: { label: 'COMPLETE', color: 'bg-green-500', textColor: 'text-black', icon: IconCheck }
+            };
+
+            // Auth Logic
+            useEffect(() => {
+                const initAuth = async () => {
+                    try {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch (error) {
+                        console.error("Auth error:", error);
+                    }
+                };
+                initAuth();
+                const unsubscribe = onAuthStateChanged(auth, setUser);
+                return () => unsubscribe();
+            }, []);
+
+            // Real-time Data Sync
+            useEffect(() => {
+                if (!user) return;
+                const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
+                const q = query(ticketsRef);
+                const unsubscribe = onSnapshot(q, (snapshot) => {
+                    const ticketData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    // Simple local sort by timestamp
+                    const sorted = ticketData.sort((a, b) => {
+                        const timeA = a.timestamp?.seconds || 0;
+                        const timeB = b.timestamp?.seconds || 0;
+                        return timeB - timeA;
+                    });
+                    setTickets(sorted);
+                    setLoading(false);
+                }, (error) => {
+                    console.error("Firestore error:", error);
+                    setLoading(false);
+                });
+                return () => unsubscribe();
+            }, [user]);
+
+            const handleAddTicket = async () => {
+                if (!newTicket.title.trim() || !user) return;
+                try {
+                    const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
+                    await addDoc(ticketsRef, {
+                        title: newTicket.title,
+                        description: newTicket.description,
+                        status: 'report',
+                        timestamp: serverTimestamp(),
+                        createdBy: user.uid
+                    });
+                    setNewTicket({ title: '', description: '' });
+                    setIsModalOpen(false);
+                } catch (error) { console.error("Add error:", error); }
+            };
+
+            const handleDeleteTicket = async (id) => {
+                if (!user) return;
+                try {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id));
+                } catch (error) { console.error("Delete error:", error); }
+            };
+
+            const handleMoveTicket = async (id, currentStatus, direction) => {
+                if (!user) return;
+                const statusOrder = ['report', 'doing', 'complete'];
+                const currentIndex = statusOrder.indexOf(currentStatus);
+                let newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
+                if (newIndex < 0 || newIndex >= statusOrder.length) return;
+                
+                try {
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id), {
+                        status: statusOrder[newIndex]
+                    });
+                } catch (error) { console.error("Move error:", error); }
+            };
+
+            if (loading) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center p-4">
+                        <BrutalCard className="flex items-center gap-4 bg-yellow-300">
+                            <div className="animate-spin h-8 w-8 border-4 border-black border-t-transparent rounded-full"></div>
+                            <h2 className="text-2xl font-black uppercase">Syncing Boards...</h2>
+                        </BrutalCard>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen p-4 md:p-8 overflow-x-hidden">
+                    {/* Brand Header */}
+                    <div className="max-w-7xl mx-auto mb-12 flex flex-col md:flex-row justify-between items-center gap-6">
+                        <div className="bg-black text-white p-4 border-4 border-black shadow-[8px_8px_0px_0px_#FF00FF] transform -rotate-1">
+                            <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter">TICKET_MSTR</h1>
+                        </div>
+                        <BrutalButton onClick={() => setIsModalOpen(true)} color="bg-cyan-400" icon={IconPlus} className="w-full md:w-auto text-xl py-4">
+                            New Ticket
+                        </BrutalButton>
+                    </div>
+
+                    <div className="max-w-7xl mx-auto mb-6 flex justify-end">
+                        <div className="bg-white border-2 border-black px-3 py-1 text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                            SESSION: {user?.uid?.slice(0, 12)}...
+                        </div>
+                    </div>
+
+                    {/* Columns */}
+                    <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
+                        {Object.entries(stages).map(([status, stage]) => {
+                            const stageTickets = tickets.filter(t => t.status === status);
+                            const Icon = stage.icon;
+                            return (
+                                <div key={status} className="flex flex-col gap-4">
+                                    <div className={`${stage.color} border-4 border-black p-4 brutal-shadow-lg flex items-center justify-between`}>
+                                        <h2 className={`text-2xl font-black uppercase flex items-center gap-3 ${stage.textColor}`}>
+                                            <Icon /> {stage.label}
+                                        </h2>
+                                        <span className="bg-black text-white px-3 py-1 font-bold border-2 border-white">{stageTickets.length}</span>
+                                    </div>
+
+                                    <div className="flex flex-col gap-6">
+                                        {stageTickets.length === 0 && (
+                                            <div className="border-4 border-dashed border-gray-400 p-8 text-center text-gray-500 font-bold uppercase">Empty Column</div>
+                                        )}
+                                        {stageTickets.map(ticket => (
+                                            <BrutalCard key={ticket.id} className="relative hover:-translate-y-1 transition-transform duration-200">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <span className="text-[10px] font-bold bg-black text-white px-2 py-1">#{ticket.id.slice(-6).toUpperCase()}</span>
+                                                    <button onClick={() => handleDeleteTicket(ticket.id)} className="text-black hover:text-red-600 transition-colors p-1"><IconTrash /></button>
+                                                </div>
+                                                <h3 className="text-xl font-black leading-tight mb-2 uppercase break-words">{ticket.title}</h3>
+                                                <p className="text-sm font-bold text-gray-700 mb-6 break-words">{ticket.description}</p>
+                                                
+                                                <div className="flex justify-between items-center border-t-4 border-black pt-4 -mx-4 px-4 bg-gray-50 -mb-4 pb-4">
+                                                    {status !== 'report' ? (
+                                                        <button onClick={() => handleMoveTicket(ticket.id, ticket.status, 'prev')} className="bg-white border-2 border-black p-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] brutal-btn-active"><IconLeft /></button>
+                                                    ) : <div />}
+                                                    {status !== 'complete' ? (
+                                                        <button onClick={() => handleMoveTicket(ticket.id, ticket.status, 'next')} className="bg-black text-white border-2 border-black p-2 shadow-[2px_2px_0px_0px_#888] brutal-btn-active"><IconRight /></button>
+                                                    ) : <div />}
+                                                </div>
+                                            </BrutalCard>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Modal */}
+                    {isModalOpen && (
+                        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+                            <div className="bg-white border-4 border-black shadow-[16px_16px_0px_0px_#FF0000] w-full max-w-md p-6 relative">
+                                <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 text-black hover:rotate-90 transition-transform duration-200"><IconX /></button>
+                                <h2 className="text-3xl font-black uppercase mb-8 bg-yellow-400 inline-block border-4 border-black px-2 transform -rotate-2">New Issue</h2>
+                                <div className="flex flex-col gap-4">
+                                    <label className="block font-black uppercase -mb-2 text-sm">Subject</label>
+                                    <BrutalInput placeholder="WHAT'S BROKEN?" value={newTicket.title} onChange={(e) => setNewTicket({...newTicket, title: e.target.value})} autoFocus />
+                                    <label className="block font-black uppercase -mb-2 text-sm">Details</label>
+                                    <BrutalTextArea placeholder="GIVE ME THE DEETS..." value={newTicket.description} onChange={(e) => setNewTicket({...newTicket, description: e.target.value})} />
+                                    <BrutalButton onClick={handleAddTicket} color="bg-black" className="w-full text-white mt-4">SUBMIT REPORT</BrutalButton>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="fixed bottom-4 left-4 hidden lg:block opacity-30 pointer-events-none z-0">
+                        <div className="text-8xl font-black text-gray-400 transform -rotate-6">LIVE_DB</div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
