@@ -22,16 +22,22 @@
         .brutal-shadow-xl { box-shadow: 16px 16px 0px 0px rgba(0,0,0,1); }
         
         .brutal-btn-active:active { 
-            transform: translate(4px, 4px); 
-            box-shadow: 0px 0px 0px 0px rgba(0,0,0,1); 
+            transform: translate(2px, 2px); 
+            box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); 
         }
+        
+        /* Custom scrollbar for brutalist feel */
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: #fff; border-left: 4px solid #000; }
+        ::-webkit-scrollbar-thumb { background: #000; border: 2px solid #fff; }
+        ::-webkit-scrollbar-thumb:hover { background: #333; }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel" data-type="module">
-        const { useState, useEffect, useMemo } = React;
+        const { useState, useEffect, useRef } = React;
 
         // Import Firebase via ESM
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -64,12 +70,18 @@
         const IconCheck = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>;
         const IconClock = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>;
         const IconX = () => <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
+        const IconArchive = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>;
+        const IconPencil = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>;
+        const IconFile = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>;
+        const IconCode = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>;
+        const IconUndo = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>;
 
         // --- UI Components ---
-        const BrutalButton = ({ children, onClick, color = "bg-white", className = "", icon: Icon, disabled = false }) => (
+        const BrutalButton = ({ children, onClick, color = "bg-white", className = "", icon: Icon, disabled = false, title }) => (
             <button
                 onClick={onClick}
                 disabled={disabled}
+                title={title}
                 className={`${color} border-4 border-black px-4 py-2 font-bold font-mono text-black uppercase tracking-wider brutal-shadow brutal-btn-active disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-100 flex items-center justify-center gap-2 ${className}`}
             >
                 {Icon && <Icon />}
@@ -77,31 +89,37 @@
             </button>
         );
 
-        const BrutalCard = ({ children, className = "", color = "bg-white" }) => (
-            <div className={`${color} border-4 border-black p-4 brutal-shadow-lg ${className}`}>
+        const BrutalCard = ({ children, className = "", color = "bg-white", borderColor = "border-black" }) => (
+            <div className={`${color} border-4 ${borderColor} p-4 brutal-shadow-lg ${className}`}>
                 {children}
             </div>
         );
 
-        const BrutalInput = ({ value, onChange, placeholder, className = "", autoFocus = false }) => (
-            <input
-                type="text"
-                value={value}
-                onChange={onChange}
-                placeholder={placeholder}
-                autoFocus={autoFocus}
-                className={`w-full bg-white border-4 border-black p-3 font-mono font-bold text-black placeholder-gray-500 focus:outline-none focus:bg-yellow-100 ${className}`}
-            />
+        const BrutalInput = ({ value, onChange, placeholder, className = "", autoFocus = false, label }) => (
+            <div className="w-full">
+                {label && <label className="block font-black uppercase text-xs mb-1 tracking-widest">{label}</label>}
+                <input
+                    type="text"
+                    value={value || ''}
+                    onChange={onChange}
+                    placeholder={placeholder}
+                    autoFocus={autoFocus}
+                    className={`w-full bg-white border-4 border-black p-3 font-mono font-bold text-black placeholder-gray-400 focus:outline-none focus:bg-yellow-100 transition-colors ${className}`}
+                />
+            </div>
         );
 
-        const BrutalTextArea = ({ value, onChange, placeholder, className = "" }) => (
-            <textarea
-                value={value}
-                onChange={onChange}
-                placeholder={placeholder}
-                rows={3}
-                className={`w-full bg-white border-4 border-black p-3 font-mono font-bold text-black placeholder-gray-500 focus:outline-none focus:bg-yellow-100 resize-none ${className}`}
-            />
+        const BrutalTextArea = ({ value, onChange, placeholder, className = "", label }) => (
+            <div className="w-full">
+                {label && <label className="block font-black uppercase text-xs mb-1 tracking-widest">{label}</label>}
+                <textarea
+                    value={value || ''}
+                    onChange={onChange}
+                    placeholder={placeholder}
+                    rows={4}
+                    className={`w-full bg-white border-4 border-black p-3 font-mono font-bold text-black placeholder-gray-400 focus:outline-none focus:bg-yellow-100 resize-none transition-colors ${className}`}
+                />
+            </div>
         );
 
         // --- Main App Component ---
@@ -109,8 +127,19 @@
             const [tickets, setTickets] = useState([]);
             const [user, setUser] = useState(null);
             const [loading, setLoading] = useState(true);
+            const [viewMode, setViewMode] = useState('board'); // 'board' or 'archive'
+            
+            // Modal State
             const [isModalOpen, setIsModalOpen] = useState(false);
-            const [newTicket, setNewTicket] = useState({ title: '', description: '' });
+            const [editingTicket, setEditingTicket] = useState(null); // If null, we are creating. If set, we are editing.
+            
+            // Form State
+            const [formData, setFormData] = useState({
+                title: '',
+                description: '',
+                appVersion: '',
+                fileLocate: ''
+            });
 
             const stages = {
                 report: { label: 'REPORT', color: 'bg-red-500', textColor: 'text-white', icon: IconAlert },
@@ -118,6 +147,7 @@
                 complete: { label: 'COMPLETE', color: 'bg-green-500', textColor: 'text-black', icon: IconCheck }
             };
 
+            // Auth & Data Sync
             useEffect(() => {
                 const initAuth = async () => {
                     try {
@@ -155,24 +185,78 @@
                 return () => unsubscribe();
             }, [user]);
 
-            const handleAddTicket = async () => {
-                if (!newTicket.title.trim() || !user) return;
-                try {
-                    const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
-                    await addDoc(ticketsRef, {
-                        title: newTicket.title,
-                        description: newTicket.description,
-                        status: 'report',
-                        timestamp: serverTimestamp(),
-                        createdBy: user.uid
+            // CRUD Handlers
+            const openModal = (ticket = null) => {
+                if (ticket) {
+                    setEditingTicket(ticket);
+                    setFormData({
+                        title: ticket.title || '',
+                        description: ticket.description || '',
+                        appVersion: ticket.appVersion || '',
+                        fileLocate: ticket.fileLocate || ''
                     });
-                    setNewTicket({ title: '', description: '' });
-                    setIsModalOpen(false);
-                } catch (error) { console.error("Add error:", error); }
+                } else {
+                    setEditingTicket(null);
+                    setFormData({ title: '', description: '', appVersion: '', fileLocate: '' });
+                }
+                setIsModalOpen(true);
             };
 
-            const handleDeleteTicket = async (id) => {
+            const handleSubmitTicket = async () => {
+                if (!formData.title.trim() || !user) return;
+                
+                try {
+                    const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
+                    
+                    if (editingTicket) {
+                        // Update existing
+                        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', editingTicket.id), {
+                            title: formData.title,
+                            description: formData.description,
+                            appVersion: formData.appVersion,
+                            fileLocate: formData.fileLocate,
+                            updatedAt: serverTimestamp()
+                        });
+                    } else {
+                        // Create new
+                        await addDoc(ticketsRef, {
+                            title: formData.title,
+                            description: formData.description,
+                            appVersion: formData.appVersion,
+                            status: 'report', // Default status
+                            fileLocate: '',
+                            timestamp: serverTimestamp(),
+                            createdBy: user.uid
+                        });
+                    }
+                    setIsModalOpen(false);
+                } catch (error) { console.error("Submit error:", error); }
+            };
+
+            // Soft Delete (Move to Archive)
+            const handleArchiveTicket = async (id) => {
                 if (!user) return;
+                try {
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id), {
+                        status: 'archive'
+                    });
+                } catch (error) { console.error("Archive error:", error); }
+            };
+
+            // Restore from Archive
+            const handleRestoreTicket = async (id) => {
+                if (!user) return;
+                try {
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id), {
+                        status: 'report'
+                    });
+                } catch (error) { console.error("Restore error:", error); }
+            };
+
+            // Hard Delete
+            const handlePermanentDelete = async (id) => {
+                if (!user) return;
+                if (!confirm("PERMANENTLY DELETE? THIS CANNOT BE UNDONE.")) return;
                 try {
                     await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id));
                 } catch (error) { console.error("Delete error:", error); }
@@ -183,90 +267,252 @@
                 const statusOrder = ['report', 'doing', 'complete'];
                 const currentIndex = statusOrder.indexOf(currentStatus);
                 let newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
+                
                 if (newIndex < 0 || newIndex >= statusOrder.length) return;
+                
+                const newStatus = statusOrder[newIndex];
                 
                 try {
                     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id), {
-                        status: statusOrder[newIndex]
+                        status: newStatus
                     });
                 } catch (error) { console.error("Move error:", error); }
             };
 
+            // Quick update for File Locate field directly on card
+            const handleQuickUpdateFileLocate = async (id, newValue) => {
+                if (!user) return;
+                try {
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id), {
+                        fileLocate: newValue
+                    });
+                } catch (error) { console.error("Quick update error:", error); }
+            };
+
             if (loading) {
                 return (
-                    <div className="min-h-screen flex items-center justify-center p-4">
-                        <BrutalCard className="flex items-center gap-4 bg-yellow-300">
+                    <div className="min-h-screen flex items-center justify-center p-4 bg-yellow-300">
+                        <BrutalCard className="flex items-center gap-4 bg-white">
                             <div className="animate-spin h-8 w-8 border-4 border-black border-t-transparent rounded-full"></div>
-                            <h2 className="text-2xl font-black uppercase">Syncing Board...</h2>
+                            <h2 className="text-2xl font-black uppercase">Loading Database...</h2>
                         </BrutalCard>
                     </div>
                 );
             }
 
+            const activeTickets = tickets.filter(t => t.status !== 'archive');
+            const archivedTickets = tickets.filter(t => t.status === 'archive');
+
             return (
-                <div className="min-h-screen p-4 md:p-8 overflow-x-hidden">
-                    <div className="max-w-7xl mx-auto mb-12 flex flex-col md:flex-row justify-between items-center gap-6">
-                        <div className="bg-black text-white p-4 border-4 border-black shadow-[8px_8px_0px_0px_#FF00FF] transform -rotate-1">
-                            <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter">TICKET_MSTR</h1>
+                <div className="min-h-screen p-2 md:p-8 overflow-x-hidden flex flex-col">
+                    
+                    {/* Header */}
+                    <div className="max-w-7xl mx-auto w-full mb-8 flex flex-col md:flex-row justify-between items-center gap-6">
+                        <div className="bg-black text-white p-4 border-4 border-black shadow-[8px_8px_0px_0px_#FF00FF] transform -rotate-1 hover:rotate-0 transition-transform cursor-default">
+                            <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter">
+                                {viewMode === 'board' ? 'TICKET_MSTR' : 'ARCHIVE_VAULT'}
+                            </h1>
                         </div>
-                        <BrutalButton onClick={() => setIsModalOpen(true)} color="bg-cyan-400" icon={IconPlus} className="w-full md:w-auto text-xl py-4">
-                            New Ticket
-                        </BrutalButton>
+                        
+                        <div className="flex gap-4 w-full md:w-auto">
+                            <BrutalButton 
+                                onClick={() => setViewMode(viewMode === 'board' ? 'archive' : 'board')} 
+                                color={viewMode === 'board' ? 'bg-gray-300' : 'bg-yellow-400'}
+                                icon={viewMode === 'board' ? IconArchive : IconLeft}
+                                title={viewMode === 'board' ? "Go to Archive" : "Back to Board"}
+                            >
+                                {viewMode === 'board' ? 'Archive' : 'Back'}
+                            </BrutalButton>
+                            
+                            {viewMode === 'board' && (
+                                <BrutalButton 
+                                    onClick={() => openModal()} 
+                                    color="bg-cyan-400" 
+                                    icon={IconPlus} 
+                                    className="flex-grow md:flex-grow-0"
+                                >
+                                    New Ticket
+                                </BrutalButton>
+                            )}
+                        </div>
                     </div>
 
-                    <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
-                        {Object.entries(stages).map(([status, stage]) => {
-                            const stageTickets = tickets.filter(t => t.status === status);
-                            const Icon = stage.icon;
-                            return (
-                                <div key={status} className="flex flex-col gap-4">
-                                    <div className={`${stage.color} border-4 border-black p-4 brutal-shadow-lg flex items-center justify-between`}>
-                                        <h2 className={`text-2xl font-black uppercase flex items-center gap-3 ${stage.textColor}`}>
-                                            <Icon /> {stage.label}
-                                        </h2>
-                                        <span className="bg-black text-white px-3 py-1 font-bold border-2 border-white">{stageTickets.length}</span>
-                                    </div>
+                    {/* Main Board View */}
+                    {viewMode === 'board' && (
+                        <div className="max-w-7xl mx-auto w-full grid grid-cols-1 md:grid-cols-3 gap-8">
+                            {Object.entries(stages).map(([status, stage]) => {
+                                const stageTickets = activeTickets.filter(t => t.status === status);
+                                const Icon = stage.icon;
+                                
+                                return (
+                                    <div key={status} className="flex flex-col gap-4">
+                                        <div className={`${stage.color} border-4 border-black p-4 brutal-shadow-lg flex items-center justify-between sticky top-2 z-10`}>
+                                            <h2 className={`text-xl md:text-2xl font-black uppercase flex items-center gap-3 ${stage.textColor}`}>
+                                                <Icon /> {stage.label}
+                                            </h2>
+                                            <span className="bg-black text-white px-3 py-1 font-bold border-2 border-white">{stageTickets.length}</span>
+                                        </div>
 
-                                    <div className="flex flex-col gap-6">
-                                        {stageTickets.length === 0 && (
-                                            <div className="border-4 border-dashed border-gray-400 p-8 text-center text-gray-500 font-bold uppercase">No Active Tickets</div>
-                                        )}
-                                        {stageTickets.map(ticket => (
-                                            <BrutalCard key={ticket.id} className="relative hover:-translate-y-1 transition-transform duration-200">
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <span className="text-[10px] font-bold bg-black text-white px-2 py-1">#{ticket.id.slice(-6).toUpperCase()}</span>
-                                                    <button onClick={() => handleDeleteTicket(ticket.id)} className="text-black hover:text-red-600 transition-colors p-1"><IconTrash /></button>
-                                                </div>
-                                                <h3 className="text-xl font-black leading-tight mb-2 uppercase break-words">{ticket.title}</h3>
-                                                <p className="text-sm font-bold text-gray-700 mb-6 break-words">{ticket.description}</p>
-                                                
-                                                <div className="flex justify-between items-center border-t-4 border-black pt-4 -mx-4 px-4 bg-gray-50 -mb-4 pb-4">
-                                                    {status !== 'report' ? (
-                                                        <button onClick={() => handleMoveTicket(ticket.id, ticket.status, 'prev')} className="bg-white border-2 border-black p-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] brutal-btn-active"><IconLeft /></button>
-                                                    ) : <div />}
-                                                    {status !== 'complete' ? (
-                                                        <button onClick={() => handleMoveTicket(ticket.id, ticket.status, 'next')} className="bg-black text-white border-2 border-black p-2 shadow-[2px_2px_0px_0px_#888] brutal-btn-active"><IconRight /></button>
-                                                    ) : <div />}
-                                                </div>
-                                            </BrutalCard>
-                                        ))}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
+                                        <div className="flex flex-col gap-6 pb-12">
+                                            {stageTickets.length === 0 && (
+                                                <div className="border-4 border-dashed border-gray-400 p-8 text-center text-gray-400 font-bold uppercase select-none">Empty Stage</div>
+                                            )}
+                                            {stageTickets.map(ticket => (
+                                                <BrutalCard key={ticket.id} className="relative group transition-all duration-200">
+                                                    
+                                                    {/* Card Header */}
+                                                    <div className="flex justify-between items-start mb-3 gap-2">
+                                                        <span className="text-[10px] font-bold bg-black text-white px-2 py-1 select-all">#{ticket.id.slice(-6).toUpperCase()}</span>
+                                                        <div className="flex gap-1">
+                                                            <button onClick={() => openModal(ticket)} className="text-black hover:text-blue-600 border-2 border-transparent hover:border-black p-1 transition-all" title="Edit">
+                                                                <IconPencil />
+                                                            </button>
+                                                            {/* Trash Icon performs Soft Delete (Archive) */}
+                                                            <button onClick={() => handleArchiveTicket(ticket.id)} className="text-black hover:text-red-600 border-2 border-transparent hover:border-black p-1 transition-all" title="Archive">
+                                                                <IconTrash />
+                                                            </button>
+                                                        </div>
+                                                    </div>
 
+                                                    {/* Card Content */}
+                                                    <h3 className="text-lg font-black leading-tight mb-2 uppercase break-words">{ticket.title}</h3>
+                                                    
+                                                    {/* App/Version Badge */}
+                                                    {ticket.appVersion && (
+                                                        <div className="inline-flex items-center gap-1 bg-gray-200 border-2 border-black px-2 py-1 text-xs font-bold mb-3">
+                                                            <IconCode /> {ticket.appVersion}
+                                                        </div>
+                                                    )}
+
+                                                    {/* File Locate Input (Only visible if 'Doing' or has value) */}
+                                                    {(status === 'doing') && (
+                                                        <div className="mb-3 bg-yellow-50 p-2 border-2 border-black">
+                                                            <label className="flex items-center gap-1 text-[10px] font-bold uppercase mb-1">
+                                                                <IconFile /> File Locate
+                                                            </label>
+                                                            <input 
+                                                                type="text" 
+                                                                className="w-full bg-white border-2 border-black p-1 text-xs font-mono"
+                                                                defaultValue={ticket.fileLocate}
+                                                                placeholder="path/to/file.js"
+                                                                onBlur={(e) => handleQuickUpdateFileLocate(ticket.id, e.target.value)}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                    {/* Show static file locate if not doing but has value */}
+                                                    {(status !== 'doing' && ticket.fileLocate) && (
+                                                        <div className="mb-3 text-xs font-mono bg-gray-100 p-2 border-l-4 border-black break-all">
+                                                            <span className="font-bold">FILE:</span> {ticket.fileLocate}
+                                                        </div>
+                                                    )}
+
+                                                    <p className="text-sm font-bold text-gray-600 mb-6 whitespace-pre-wrap break-words">{ticket.description}</p>
+                                                    
+                                                    {/* Card Actions */}
+                                                    <div className="flex justify-between items-center border-t-4 border-black pt-4 -mx-4 px-4 bg-gray-50 -mb-4 pb-4 mt-auto">
+                                                        {status !== 'report' ? (
+                                                            <button onClick={() => handleMoveTicket(ticket.id, ticket.status, 'prev')} className="bg-white hover:bg-gray-100 border-2 border-black p-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] brutal-btn-active">
+                                                                <IconLeft />
+                                                            </button>
+                                                        ) : <div />}
+                                                        
+                                                        {status === 'complete' ? (
+                                                            <button onClick={() => handleArchiveTicket(ticket.id)} className="bg-gray-200 hover:bg-gray-300 text-xs font-bold border-2 border-black px-2 py-2 flex items-center gap-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] brutal-btn-active">
+                                                                ARCHIVE <IconArchive />
+                                                            </button>
+                                                        ) : (
+                                                            <button onClick={() => handleMoveTicket(ticket.id, ticket.status, 'next')} className="bg-black hover:bg-gray-800 text-white border-2 border-black p-2 shadow-[2px_2px_0px_0px_#888] brutal-btn-active">
+                                                                <IconRight />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </BrutalCard>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    {/* Archive View */}
+                    {viewMode === 'archive' && (
+                        <div className="max-w-4xl mx-auto w-full">
+                            <BrutalCard className="mb-8 bg-gray-200">
+                                <h2 className="text-2xl font-black uppercase mb-2">Archive Vault</h2>
+                                <p className="font-mono text-sm">Items here are soft-deleted. Restore them to the board or burn them forever.</p>
+                            </BrutalCard>
+
+                            <div className="grid grid-cols-1 gap-4">
+                                {archivedTickets.length === 0 && (
+                                     <div className="border-4 border-dashed border-gray-400 p-12 text-center text-gray-500 font-bold uppercase text-xl">The Vault is Empty</div>
+                                )}
+                                {archivedTickets.map(ticket => (
+                                    <div key={ticket.id} className="bg-white border-4 border-black p-4 brutal-shadow flex flex-col md:flex-row justify-between items-start md:items-center gap-4 opacity-75 hover:opacity-100 transition-opacity">
+                                        <div className="flex-grow">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-xs bg-black text-white px-1">#{ticket.id.slice(-6)}</span>
+                                                <span className="text-xs font-bold bg-gray-300 px-1">{ticket.appVersion || 'N/A'}</span>
+                                            </div>
+                                            <h3 className="text-xl font-black uppercase">{ticket.title}</h3>
+                                            <p className="text-sm truncate text-gray-600 max-w-md">{ticket.description}</p>
+                                        </div>
+                                        <div className="flex gap-3 w-full md:w-auto">
+                                            <BrutalButton onClick={() => handleRestoreTicket(ticket.id)} color="bg-green-400" className="flex-1 md:flex-none text-sm" icon={IconUndo}>Restore</BrutalButton>
+                                            <BrutalButton onClick={() => handlePermanentDelete(ticket.id)} color="bg-red-500" className="text-white flex-1 md:flex-none text-sm" icon={IconTrash}>Burn</BrutalButton>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Create/Edit Modal */}
                     {isModalOpen && (
                         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-                            <div className="bg-white border-4 border-black shadow-[16px_16px_0px_0px_#FF0000] w-full max-w-md p-6 relative">
+                            <div className="bg-white border-4 border-black shadow-[16px_16px_0px_0px_#FF0000] w-full max-w-lg p-6 relative max-h-[90vh] overflow-y-auto">
                                 <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 text-black hover:rotate-90 transition-transform duration-200"><IconX /></button>
-                                <h2 className="text-3xl font-black uppercase mb-8 bg-yellow-400 inline-block border-4 border-black px-2 transform -rotate-2">New Issue</h2>
+                                
+                                <h2 className={`text-2xl md:text-3xl font-black uppercase mb-6 ${editingTicket ? 'bg-cyan-300' : 'bg-yellow-400'} inline-block border-4 border-black px-2 transform -rotate-1`}>
+                                    {editingTicket ? 'Edit Issue' : 'New Issue'}
+                                </h2>
+                                
                                 <div className="flex flex-col gap-4">
-                                    <label className="block font-black uppercase -mb-2 text-sm">Subject</label>
-                                    <BrutalInput placeholder="WHAT'S BROKEN?" value={newTicket.title} onChange={(e) => setNewTicket({...newTicket, title: e.target.value})} autoFocus />
-                                    <label className="block font-black uppercase -mb-2 text-sm">Details</label>
-                                    <BrutalTextArea placeholder="GIVE ME THE DEETS..." value={newTicket.description} onChange={(e) => setNewTicket({...newTicket, description: e.target.value})} />
-                                    <BrutalButton onClick={handleAddTicket} color="bg-black" className="w-full text-white mt-4">SUBMIT REPORT</BrutalButton>
+                                    <BrutalInput 
+                                        label="Subject"
+                                        placeholder="WHAT'S BROKEN?" 
+                                        value={formData.title} 
+                                        onChange={(e) => setFormData({...formData, title: e.target.value})} 
+                                        autoFocus={!editingTicket}
+                                    />
+                                    
+                                    <BrutalInput 
+                                        label="App / Version / Branch"
+                                        placeholder="v2.0.1 / main / production" 
+                                        value={formData.appVersion} 
+                                        onChange={(e) => setFormData({...formData, appVersion: e.target.value})} 
+                                        className="bg-gray-50"
+                                    />
+
+                                    {/* Show File Locate in Modal if editing and ticket is not in report, or just generally allow editing it */}
+                                    <BrutalInput 
+                                        label="File Locate (Optional)"
+                                        placeholder="src/components/App.js" 
+                                        value={formData.fileLocate} 
+                                        onChange={(e) => setFormData({...formData, fileLocate: e.target.value})} 
+                                        className="bg-gray-50"
+                                    />
+                                    
+                                    <BrutalTextArea 
+                                        label="Details"
+                                        placeholder="GIVE ME THE DEETS..." 
+                                        value={formData.description} 
+                                        onChange={(e) => setFormData({...formData, description: e.target.value})} 
+                                    />
+                                    
+                                    <BrutalButton onClick={handleSubmitTicket} color="bg-black" className="w-full text-white mt-4 py-4 text-xl">
+                                        {editingTicket ? 'SAVE CHANGES' : 'SUBMIT REPORT'}
+                                    </BrutalButton>
                                 </div>
                             </div>
                         </div>
