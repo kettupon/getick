@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TICKET_MSTR | Real-time Kanban</title>
+    <title>TICKET_MSTR | Global Kanban</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- React and Babel for JSX -->
@@ -30,11 +30,10 @@
 <body>
     <div id="root"></div>
 
-    <!-- Added data-type="module" to fix the "require" ReferenceError by allowing ES imports -->
     <script type="text/babel" data-type="module">
         const { useState, useEffect, useMemo } = React;
 
-        // Import Firebase via ESM - Supported in browsers when using data-type="module" or type="module"
+        // Import Firebase via ESM
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, doc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -54,7 +53,7 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'ticket-master-html-v2';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'ticket-master-global';
 
         // --- Icons (Inline SVGs) ---
         const IconPlus = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>;
@@ -119,7 +118,6 @@
                 complete: { label: 'COMPLETE', color: 'bg-green-500', textColor: 'text-black', icon: IconCheck }
             };
 
-            // Auth Logic
             useEffect(() => {
                 const initAuth = async () => {
                     try {
@@ -137,14 +135,12 @@
                 return () => unsubscribe();
             }, []);
 
-            // Real-time Data Sync
             useEffect(() => {
                 if (!user) return;
                 const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
                 const q = query(ticketsRef);
                 const unsubscribe = onSnapshot(q, (snapshot) => {
                     const ticketData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    // Simple local sort by timestamp
                     const sorted = ticketData.sort((a, b) => {
                         const timeA = a.timestamp?.seconds || 0;
                         const timeB = b.timestamp?.seconds || 0;
@@ -201,7 +197,7 @@
                     <div className="min-h-screen flex items-center justify-center p-4">
                         <BrutalCard className="flex items-center gap-4 bg-yellow-300">
                             <div className="animate-spin h-8 w-8 border-4 border-black border-t-transparent rounded-full"></div>
-                            <h2 className="text-2xl font-black uppercase">Syncing Boards...</h2>
+                            <h2 className="text-2xl font-black uppercase">Syncing Board...</h2>
                         </BrutalCard>
                     </div>
                 );
@@ -209,7 +205,6 @@
 
             return (
                 <div className="min-h-screen p-4 md:p-8 overflow-x-hidden">
-                    {/* Brand Header */}
                     <div className="max-w-7xl mx-auto mb-12 flex flex-col md:flex-row justify-between items-center gap-6">
                         <div className="bg-black text-white p-4 border-4 border-black shadow-[8px_8px_0px_0px_#FF00FF] transform -rotate-1">
                             <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter">TICKET_MSTR</h1>
@@ -219,13 +214,6 @@
                         </BrutalButton>
                     </div>
 
-                    <div className="max-w-7xl mx-auto mb-6 flex justify-end">
-                        <div className="bg-white border-2 border-black px-3 py-1 text-[10px] font-bold uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                            SESSION: {user?.uid?.slice(0, 12)}...
-                        </div>
-                    </div>
-
-                    {/* Columns */}
                     <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
                         {Object.entries(stages).map(([status, stage]) => {
                             const stageTickets = tickets.filter(t => t.status === status);
@@ -241,7 +229,7 @@
 
                                     <div className="flex flex-col gap-6">
                                         {stageTickets.length === 0 && (
-                                            <div className="border-4 border-dashed border-gray-400 p-8 text-center text-gray-500 font-bold uppercase">Empty Column</div>
+                                            <div className="border-4 border-dashed border-gray-400 p-8 text-center text-gray-500 font-bold uppercase">No Active Tickets</div>
                                         )}
                                         {stageTickets.map(ticket => (
                                             <BrutalCard key={ticket.id} className="relative hover:-translate-y-1 transition-transform duration-200">
@@ -268,7 +256,6 @@
                         })}
                     </div>
 
-                    {/* Modal */}
                     {isModalOpen && (
                         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
                             <div className="bg-white border-4 border-black shadow-[16px_16px_0px_0px_#FF0000] w-full max-w-md p-6 relative">
