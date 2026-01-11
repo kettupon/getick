@@ -25,6 +25,14 @@
             transform: translate(2px, 2px); 
             box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); 
         }
+
+        /* Float Animation for FAB */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float { animation: float 3s ease-in-out infinite; }
         
         /* Custom scrollbar for brutalist feel */
         ::-webkit-scrollbar { width: 12px; }
@@ -75,6 +83,9 @@
         const IconFile = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>;
         const IconCode = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>;
         const IconUndo = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>;
+        const IconClipboard = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>;
+        const IconCopy = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>;
+        const IconPaste = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>;
 
         // --- UI Components ---
         const BrutalButton = ({ children, onClick, color = "bg-white", className = "", icon: Icon, disabled = false, title }) => (
@@ -109,14 +120,15 @@
             </div>
         );
 
-        const BrutalTextArea = ({ value, onChange, placeholder, className = "", label }) => (
+        const BrutalTextArea = ({ value, onChange, placeholder, className = "", label, rows = 4, inputRef }) => (
             <div className="w-full">
                 {label && <label className="block font-black uppercase text-xs mb-1 tracking-widest">{label}</label>}
                 <textarea
+                    ref={inputRef}
                     value={value || ''}
                     onChange={onChange}
                     placeholder={placeholder}
-                    rows={4}
+                    rows={rows}
                     className={`w-full bg-white border-4 border-black p-3 font-mono font-bold text-black placeholder-gray-400 focus:outline-none focus:bg-yellow-100 resize-none transition-colors ${className}`}
                 />
             </div>
@@ -125,20 +137,31 @@
         // --- Main App Component ---
         function App() {
             const [tickets, setTickets] = useState([]);
+            const [clipboards, setClipboards] = useState([]);
             const [user, setUser] = useState(null);
             const [loading, setLoading] = useState(true);
-            const [viewMode, setViewMode] = useState('board'); // 'board' or 'archive'
+            const [viewMode, setViewMode] = useState('board'); // 'board' | 'archive' | 'clipboard'
             
-            // Modal State
-            const [isModalOpen, setIsModalOpen] = useState(false);
-            const [editingTicket, setEditingTicket] = useState(null); // If null, we are creating. If set, we are editing.
+            // Ticket Modal State
+            const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
+            const [editingTicket, setEditingTicket] = useState(null);
             
-            // Form State
+            // Clipboard Modal State
+            const [isClipboardModalOpen, setIsClipboardModalOpen] = useState(false);
+            const [editingClipboard, setEditingClipboard] = useState(null);
+            const clipboardInputRef = useRef(null);
+            
+            // Form State (Ticket)
             const [formData, setFormData] = useState({
                 title: '',
                 description: '',
                 appVersion: '',
                 fileLocate: ''
+            });
+
+            // Form State (Clipboard)
+            const [clipboardData, setClipboardData] = useState({
+                content: ''
             });
 
             const stages = {
@@ -167,26 +190,34 @@
 
             useEffect(() => {
                 if (!user) return;
+                
+                // Fetch Tickets
                 const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
-                const q = query(ticketsRef);
-                const unsubscribe = onSnapshot(q, (snapshot) => {
+                const qTickets = query(ticketsRef);
+                const unsubTickets = onSnapshot(qTickets, (snapshot) => {
                     const ticketData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    const sorted = ticketData.sort((a, b) => {
-                        const timeA = a.timestamp?.seconds || 0;
-                        const timeB = b.timestamp?.seconds || 0;
-                        return timeB - timeA;
-                    });
+                    const sorted = ticketData.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
                     setTickets(sorted);
                     setLoading(false);
-                }, (error) => {
-                    console.error("Firestore error:", error);
-                    setLoading(false);
-                });
-                return () => unsubscribe();
+                }, (error) => console.error("Ticket Firestore error:", error));
+
+                // Fetch Clipboards
+                const clipboardsRef = collection(db, 'artifacts', appId, 'public', 'data', 'clipboards');
+                const qClipboards = query(clipboardsRef);
+                const unsubClipboards = onSnapshot(qClipboards, (snapshot) => {
+                    const clipData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    const sortedClip = clipData.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+                    setClipboards(sortedClip);
+                }, (error) => console.error("Clipboard Firestore error:", error));
+
+                return () => {
+                    unsubTickets();
+                    unsubClipboards();
+                };
             }, [user]);
 
-            // CRUD Handlers
-            const openModal = (ticket = null) => {
+            // --- TICKET ACTIONS ---
+            const openTicketModal = (ticket = null) => {
                 if (ticket) {
                     setEditingTicket(ticket);
                     setFormData({
@@ -199,67 +230,44 @@
                     setEditingTicket(null);
                     setFormData({ title: '', description: '', appVersion: '', fileLocate: '' });
                 }
-                setIsModalOpen(true);
+                setIsTicketModalOpen(true);
             };
 
             const handleSubmitTicket = async () => {
                 if (!formData.title.trim() || !user) return;
-                
                 try {
                     const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
-                    
                     if (editingTicket) {
-                        // Update existing
                         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', editingTicket.id), {
-                            title: formData.title,
-                            description: formData.description,
-                            appVersion: formData.appVersion,
-                            fileLocate: formData.fileLocate,
+                            ...formData,
                             updatedAt: serverTimestamp()
                         });
                     } else {
-                        // Create new
                         await addDoc(ticketsRef, {
-                            title: formData.title,
-                            description: formData.description,
-                            appVersion: formData.appVersion,
-                            status: 'report', // Default status
-                            fileLocate: '',
+                            ...formData,
+                            status: 'report',
                             timestamp: serverTimestamp(),
                             createdBy: user.uid
                         });
                     }
-                    setIsModalOpen(false);
+                    setIsTicketModalOpen(false);
                 } catch (error) { console.error("Submit error:", error); }
             };
 
-            // Soft Delete (Move to Archive)
             const handleArchiveTicket = async (id) => {
                 if (!user) return;
-                try {
-                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id), {
-                        status: 'archive'
-                    });
-                } catch (error) { console.error("Archive error:", error); }
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id), { status: 'archive' });
             };
 
-            // Restore from Archive
             const handleRestoreTicket = async (id) => {
                 if (!user) return;
-                try {
-                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id), {
-                        status: 'report'
-                    });
-                } catch (error) { console.error("Restore error:", error); }
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id), { status: 'report' });
             };
 
-            // Hard Delete
-            const handlePermanentDelete = async (id) => {
-                if (!user) return;
-                if (!confirm("PERMANENTLY DELETE? THIS CANNOT BE UNDONE.")) return;
-                try {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id));
-                } catch (error) { console.error("Delete error:", error); }
+            const handlePermanentDelete = async (id, type = 'ticket') => {
+                if (!user || !confirm("PERMANENTLY DELETE? THIS CANNOT BE UNDONE.")) return;
+                const collectionName = type === 'ticket' ? 'tickets' : 'clipboards';
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, id));
             };
 
             const handleMoveTicket = async (id, currentStatus, direction) => {
@@ -267,26 +275,70 @@
                 const statusOrder = ['report', 'doing', 'complete'];
                 const currentIndex = statusOrder.indexOf(currentStatus);
                 let newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
-                
                 if (newIndex < 0 || newIndex >= statusOrder.length) return;
-                
-                const newStatus = statusOrder[newIndex];
-                
-                try {
-                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id), {
-                        status: newStatus
-                    });
-                } catch (error) { console.error("Move error:", error); }
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id), { status: statusOrder[newIndex] });
             };
 
-            // Quick update for File Locate field directly on card
             const handleQuickUpdateFileLocate = async (id, newValue) => {
                 if (!user) return;
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id), { fileLocate: newValue });
+            };
+
+            // --- CLIPBOARD ACTIONS ---
+            const openClipboardModal = (clip = null) => {
+                if (clip) {
+                    setEditingClipboard(clip);
+                    setClipboardData({ content: clip.content || '' });
+                } else {
+                    setEditingClipboard(null);
+                    setClipboardData({ content: '' });
+                }
+                setIsClipboardModalOpen(true);
+            };
+
+            const handleSubmitClipboard = async () => {
+                if (!clipboardData.content.trim() || !user) return;
                 try {
-                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id), {
-                        fileLocate: newValue
-                    });
-                } catch (error) { console.error("Quick update error:", error); }
+                    const clipboardsRef = collection(db, 'artifacts', appId, 'public', 'data', 'clipboards');
+                    if (editingClipboard) {
+                        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'clipboards', editingClipboard.id), {
+                            content: clipboardData.content,
+                            updatedAt: serverTimestamp()
+                        });
+                    } else {
+                        await addDoc(clipboardsRef, {
+                            content: clipboardData.content,
+                            timestamp: serverTimestamp(),
+                            createdBy: user.uid
+                        });
+                    }
+                    setIsClipboardModalOpen(false);
+                } catch (error) { console.error("Clipboard submit error:", error); }
+            };
+
+            const copyToClipboard = async (text) => {
+                try {
+                    await navigator.clipboard.writeText(text);
+                } catch (err) {
+                    // Fallback
+                    const textArea = document.createElement("textarea");
+                    textArea.value = text;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand("copy");
+                    document.body.removeChild(textArea);
+                }
+            };
+
+            const pasteToClipboardInput = async () => {
+                try {
+                    const text = await navigator.clipboard.readText();
+                    setClipboardData({ ...clipboardData, content: clipboardData.content + text });
+                    if(clipboardInputRef.current) clipboardInputRef.current.focus();
+                } catch (err) {
+                    alert("Browser blocked automated paste. Please use Ctrl+V / Cmd+V in the text box.");
+                    if(clipboardInputRef.current) clipboardInputRef.current.focus();
+                }
             };
 
             if (loading) {
@@ -304,29 +356,39 @@
             const archivedTickets = tickets.filter(t => t.status === 'archive');
 
             return (
-                <div className="min-h-screen p-2 md:p-8 overflow-x-hidden flex flex-col">
+                <div className="min-h-screen p-2 md:p-8 overflow-x-hidden flex flex-col relative pb-24">
                     
                     {/* Header */}
                     <div className="max-w-7xl mx-auto w-full mb-8 flex flex-col md:flex-row justify-between items-center gap-6">
                         <div className="bg-black text-white p-4 border-4 border-black shadow-[8px_8px_0px_0px_#FF00FF] transform -rotate-1 hover:rotate-0 transition-transform cursor-default">
                             <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter">
-                                {viewMode === 'board' ? 'TICKET_MSTR' : 'ARCHIVE_VAULT'}
+                                {viewMode === 'board' ? 'TICKET_MSTR' : viewMode === 'archive' ? 'ARCHIVE_VAULT' : 'CLIPBOARD_DB'}
                             </h1>
                         </div>
                         
-                        <div className="flex gap-4 w-full md:w-auto">
+                        <div className="flex flex-wrap gap-4 w-full md:w-auto justify-center">
+                            {/* Navigation Buttons */}
                             <BrutalButton 
                                 onClick={() => setViewMode(viewMode === 'board' ? 'archive' : 'board')} 
-                                color={viewMode === 'board' ? 'bg-gray-300' : 'bg-yellow-400'}
+                                color={viewMode === 'archive' ? 'bg-yellow-400' : 'bg-gray-200'}
                                 icon={viewMode === 'board' ? IconArchive : IconLeft}
                                 title={viewMode === 'board' ? "Go to Archive" : "Back to Board"}
                             >
-                                {viewMode === 'board' ? 'Archive' : 'Back'}
+                                {viewMode === 'board' ? 'Archive' : 'Board'}
+                            </BrutalButton>
+
+                            <BrutalButton
+                                onClick={() => setViewMode(viewMode === 'clipboard' ? 'board' : 'clipboard')}
+                                color={viewMode === 'clipboard' ? 'bg-pink-400' : 'bg-gray-200'}
+                                icon={IconClipboard}
+                                title="Go to Clipboard"
+                            >
+                                Clipboard
                             </BrutalButton>
                             
                             {viewMode === 'board' && (
                                 <BrutalButton 
-                                    onClick={() => openModal()} 
+                                    onClick={() => openTicketModal()} 
                                     color="bg-cyan-400" 
                                     icon={IconPlus} 
                                     className="flex-grow md:flex-grow-0"
@@ -337,7 +399,7 @@
                         </div>
                     </div>
 
-                    {/* Main Board View */}
+                    {/* --- MAIN BOARD VIEW --- */}
                     {viewMode === 'board' && (
                         <div className="max-w-7xl mx-auto w-full grid grid-cols-1 md:grid-cols-3 gap-8">
                             {Object.entries(stages).map(([status, stage]) => {
@@ -359,32 +421,26 @@
                                             )}
                                             {stageTickets.map(ticket => (
                                                 <BrutalCard key={ticket.id} className="relative group transition-all duration-200">
-                                                    
-                                                    {/* Card Header */}
                                                     <div className="flex justify-between items-start mb-3 gap-2">
                                                         <span className="text-[10px] font-bold bg-black text-white px-2 py-1 select-all">#{ticket.id.slice(-6).toUpperCase()}</span>
                                                         <div className="flex gap-1">
-                                                            <button onClick={() => openModal(ticket)} className="text-black hover:text-blue-600 border-2 border-transparent hover:border-black p-1 transition-all" title="Edit">
+                                                            <button onClick={() => openTicketModal(ticket)} className="text-black hover:text-blue-600 border-2 border-transparent hover:border-black p-1 transition-all" title="Edit">
                                                                 <IconPencil />
                                                             </button>
-                                                            {/* Trash Icon performs Soft Delete (Archive) */}
                                                             <button onClick={() => handleArchiveTicket(ticket.id)} className="text-black hover:text-red-600 border-2 border-transparent hover:border-black p-1 transition-all" title="Archive">
                                                                 <IconTrash />
                                                             </button>
                                                         </div>
                                                     </div>
 
-                                                    {/* Card Content */}
                                                     <h3 className="text-lg font-black leading-tight mb-2 uppercase break-words">{ticket.title}</h3>
                                                     
-                                                    {/* App/Version Badge */}
                                                     {ticket.appVersion && (
                                                         <div className="inline-flex items-center gap-1 bg-gray-200 border-2 border-black px-2 py-1 text-xs font-bold mb-3">
                                                             <IconCode /> {ticket.appVersion}
                                                         </div>
                                                     )}
 
-                                                    {/* File Locate Input (Only visible if 'Doing' or has value) */}
                                                     {(status === 'doing') && (
                                                         <div className="mb-3 bg-yellow-50 p-2 border-2 border-black">
                                                             <label className="flex items-center gap-1 text-[10px] font-bold uppercase mb-1">
@@ -399,7 +455,6 @@
                                                             />
                                                         </div>
                                                     )}
-                                                    {/* Show static file locate if not doing but has value */}
                                                     {(status !== 'doing' && ticket.fileLocate) && (
                                                         <div className="mb-3 text-xs font-mono bg-gray-100 p-2 border-l-4 border-black break-all">
                                                             <span className="font-bold">FILE:</span> {ticket.fileLocate}
@@ -408,7 +463,6 @@
 
                                                     <p className="text-sm font-bold text-gray-600 mb-6 whitespace-pre-wrap break-words">{ticket.description}</p>
                                                     
-                                                    {/* Card Actions */}
                                                     <div className="flex justify-between items-center border-t-4 border-black pt-4 -mx-4 px-4 bg-gray-50 -mb-4 pb-4 mt-auto">
                                                         {status !== 'report' ? (
                                                             <button onClick={() => handleMoveTicket(ticket.id, ticket.status, 'prev')} className="bg-white hover:bg-gray-100 border-2 border-black p-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] brutal-btn-active">
@@ -435,14 +489,13 @@
                         </div>
                     )}
 
-                    {/* Archive View */}
+                    {/* --- ARCHIVE VIEW --- */}
                     {viewMode === 'archive' && (
                         <div className="max-w-4xl mx-auto w-full">
                             <BrutalCard className="mb-8 bg-gray-200">
                                 <h2 className="text-2xl font-black uppercase mb-2">Archive Vault</h2>
                                 <p className="font-mono text-sm">Items here are soft-deleted. Restore them to the board or burn them forever.</p>
                             </BrutalCard>
-
                             <div className="grid grid-cols-1 gap-4">
                                 {archivedTickets.length === 0 && (
                                      <div className="border-4 border-dashed border-gray-400 p-12 text-center text-gray-500 font-bold uppercase text-xl">The Vault is Empty</div>
@@ -467,11 +520,74 @@
                         </div>
                     )}
 
-                    {/* Create/Edit Modal */}
-                    {isModalOpen && (
+                    {/* --- CLIPBOARD VIEW --- */}
+                    {viewMode === 'clipboard' && (
+                        <div className="max-w-6xl mx-auto w-full">
+                            <BrutalCard className="mb-8 bg-pink-200 border-black">
+                                <div className="flex items-center gap-4">
+                                    <div className="bg-white p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                                        <IconClipboard />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-2xl font-black uppercase">Global Clipboard</h2>
+                                        <p className="font-mono text-sm">Store code snippets, logs, and quick notes. Shared globally.</p>
+                                    </div>
+                                </div>
+                            </BrutalCard>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {clipboards.length === 0 && (
+                                    <div className="col-span-full border-4 border-dashed border-gray-400 p-12 text-center text-gray-500 font-bold uppercase text-xl">
+                                        Clipboard is empty.<br/>Click + to add content.
+                                    </div>
+                                )}
+                                {clipboards.map(clip => (
+                                    <BrutalCard key={clip.id} className="flex flex-col h-64 relative group hover:-translate-y-1 transition-transform duration-200">
+                                        <div className="flex-grow overflow-hidden font-mono text-xs p-2 bg-gray-50 border-2 border-gray-200 mb-4 whitespace-pre-wrap break-words">
+                                            {clip.content}
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button 
+                                                onClick={() => copyToClipboard(clip.content)}
+                                                className="flex-1 bg-black text-white py-2 font-bold uppercase text-xs flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors border-2 border-black"
+                                            >
+                                                <IconCopy /> Copy
+                                            </button>
+                                            <button 
+                                                onClick={() => openClipboardModal(clip)}
+                                                className="bg-white text-black py-2 px-3 border-2 border-black hover:bg-gray-100"
+                                                title="Edit"
+                                            >
+                                                <IconPencil />
+                                            </button>
+                                            <button 
+                                                onClick={() => handlePermanentDelete(clip.id, 'clipboard')}
+                                                className="bg-red-500 text-white py-2 px-3 border-2 border-black hover:bg-red-600"
+                                                title="Delete"
+                                            >
+                                                <IconTrash />
+                                            </button>
+                                        </div>
+                                    </BrutalCard>
+                                ))}
+                            </div>
+
+                            {/* Floating Action Button (FAB) for Clipboard */}
+                            <button 
+                                onClick={() => openClipboardModal()}
+                                className="fixed bottom-8 right-8 w-16 h-16 bg-pink-500 border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center rounded-full z-40 hover:scale-110 active:scale-95 transition-all animate-float"
+                                title="Add New Clipboard Item"
+                            >
+                                <IconPlus />
+                            </button>
+                        </div>
+                    )}
+
+                    {/* --- TICKET MODAL --- */}
+                    {isTicketModalOpen && (
                         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
                             <div className="bg-white border-4 border-black shadow-[16px_16px_0px_0px_#FF0000] w-full max-w-lg p-6 relative max-h-[90vh] overflow-y-auto">
-                                <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 text-black hover:rotate-90 transition-transform duration-200"><IconX /></button>
+                                <button onClick={() => setIsTicketModalOpen(false)} className="absolute top-4 right-4 text-black hover:rotate-90 transition-transform duration-200"><IconX /></button>
                                 
                                 <h2 className={`text-2xl md:text-3xl font-black uppercase mb-6 ${editingTicket ? 'bg-cyan-300' : 'bg-yellow-400'} inline-block border-4 border-black px-2 transform -rotate-1`}>
                                     {editingTicket ? 'Edit Issue' : 'New Issue'}
@@ -494,7 +610,6 @@
                                         className="bg-gray-50"
                                     />
 
-                                    {/* Show File Locate in Modal if editing and ticket is not in report, or just generally allow editing it */}
                                     <BrutalInput 
                                         label="File Locate (Optional)"
                                         placeholder="src/components/App.js" 
@@ -513,6 +628,57 @@
                                     <BrutalButton onClick={handleSubmitTicket} color="bg-black" className="w-full text-white mt-4 py-4 text-xl">
                                         {editingTicket ? 'SAVE CHANGES' : 'SUBMIT REPORT'}
                                     </BrutalButton>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* --- CLIPBOARD MODAL --- */}
+                    {isClipboardModalOpen && (
+                        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+                            <div className="bg-white border-4 border-black shadow-[16px_16px_0px_0px_#FF00FF] w-full max-w-2xl p-6 relative max-h-[90vh] overflow-y-auto flex flex-col">
+                                <button onClick={() => setIsClipboardModalOpen(false)} className="absolute top-4 right-4 text-black hover:rotate-90 transition-transform duration-200"><IconX /></button>
+                                
+                                <h2 className="text-2xl md:text-3xl font-black uppercase mb-4 bg-pink-400 inline-block border-4 border-black px-2 transform -rotate-1 self-start">
+                                    {editingClipboard ? 'Edit Snippet' : 'New Snippet'}
+                                </h2>
+                                
+                                <div className="flex flex-col gap-4 flex-grow">
+                                    <div className="relative">
+                                        <BrutalTextArea 
+                                            inputRef={clipboardInputRef}
+                                            label="Content (Code, Text, Logs)"
+                                            placeholder="Paste your content here..." 
+                                            value={clipboardData.content} 
+                                            onChange={(e) => setClipboardData({...clipboardData, content: e.target.value})} 
+                                            rows={10}
+                                            className="font-mono text-xs"
+                                        />
+                                        {/* Utility Buttons attached to TextArea */}
+                                        <div className="flex gap-2 mt-2">
+                                            <button 
+                                                onClick={() => copyToClipboard(clipboardData.content)}
+                                                className="bg-gray-200 border-2 border-black px-3 py-1 font-bold text-xs uppercase hover:bg-gray-300 flex items-center gap-1"
+                                            >
+                                                <IconCopy /> Copy All
+                                            </button>
+                                            <button 
+                                                onClick={pasteToClipboardInput}
+                                                className="bg-gray-200 border-2 border-black px-3 py-1 font-bold text-xs uppercase hover:bg-gray-300 flex items-center gap-1"
+                                            >
+                                                <IconPaste /> Paste
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-end gap-4 mt-4">
+                                        <BrutalButton onClick={() => setIsClipboardModalOpen(false)} color="bg-white" className="flex-1 md:flex-none">
+                                            Cancel
+                                        </BrutalButton>
+                                        <BrutalButton onClick={handleSubmitClipboard} color="bg-black" className="flex-1 md:flex-none text-white w-full md:w-auto">
+                                            {editingClipboard ? 'Save Changes' : 'Save Snippet'}
+                                        </BrutalButton>
+                                    </div>
                                 </div>
                             </div>
                         </div>
