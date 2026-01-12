@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TICKET_MSTR | Global Kanban</title>
+    <title>TICKET_MSTR | Global Kanban & Media</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- React and Babel for JSX -->
@@ -39,6 +39,21 @@
         ::-webkit-scrollbar-track { background: #fff; border-left: 4px solid #000; }
         ::-webkit-scrollbar-thumb { background: #000; border: 2px solid #fff; }
         ::-webkit-scrollbar-thumb:hover { background: #333; }
+        
+        /* File Input Styling */
+        input[type="file"]::file-selector-button {
+            border: 2px solid #000;
+            padding: 0.2em 0.4em;
+            background-color: #fff;
+            font-family: 'Space Mono', monospace;
+            font-weight: bold;
+            margin-right: 1em;
+            cursor: pointer;
+            box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+        }
+        input[type="file"]::file-selector-button:hover {
+            background-color: #f0f0f0;
+        }
     </style>
 </head>
 <body>
@@ -51,22 +66,28 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, doc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
-        // --- Firebase Constants ---
-        const firebaseConfig = typeof __firebase_config !== 'undefined' 
-            ? JSON.parse(__firebase_config) 
-            : {
-                apiKey: "AIzaSyDleZCKN549FWvW1Fq_Qb-NVpYi1lD2ISU",
-                authDomain: "studio-7874976757-9640e.firebaseapp.com",
-                projectId: "studio-7874976757-9640e",
-                storageBucket: "studio-7874976757-9640e.firebasestorage.app",
-                messagingSenderId: "1028425461468",
-                appId: "1:1028425461468:web:cdf8241dd90c3b08fece19"
-            };
+        // --- Firebase Configuration ---
+        // Robust config loading: Mixes environment variables with hardcoded fallbacks
+        // This ensures 'storageBucket' is present even if __firebase_config is incomplete
+        const rawConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const firebaseConfig = {
+            apiKey: rawConfig.apiKey || "AIzaSyDleZCKN549FWvW1Fq_Qb-NVpYi1lD2ISU",
+            authDomain: rawConfig.authDomain || "studio-7874976757-9640e.firebaseapp.com",
+            projectId: rawConfig.projectId || "studio-7874976757-9640e",
+            storageBucket: rawConfig.storageBucket || "studio-7874976757-9640e.firebasestorage.app",
+            messagingSenderId: rawConfig.messagingSenderId || "1028425461468",
+            appId: rawConfig.appId || "1:1028425461468:web:cdf8241dd90c3b08fece19"
+        };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        
+        // Explicitly initialize storage with the GS Bucket URI to fix potential "default bucket" errors
+        const storage = getStorage(app, "gs://studio-7874976757-9640e.firebasestorage.app");
+        
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'ticket-master-global';
 
         // --- Icons (Inline SVGs) ---
@@ -86,6 +107,8 @@
         const IconClipboard = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>;
         const IconCopy = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>;
         const IconPaste = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>;
+        const IconImage = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>;
+        const IconUpload = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>;
 
         // --- UI Components ---
         const BrutalButton = ({ children, onClick, color = "bg-white", className = "", icon: Icon, disabled = false, title }) => (
@@ -138,9 +161,10 @@
         function App() {
             const [tickets, setTickets] = useState([]);
             const [clipboards, setClipboards] = useState([]);
+            const [mediaItems, setMediaItems] = useState([]);
             const [user, setUser] = useState(null);
             const [loading, setLoading] = useState(true);
-            const [viewMode, setViewMode] = useState('board'); // 'board' | 'archive' | 'clipboard'
+            const [viewMode, setViewMode] = useState('board'); // 'board' | 'archive' | 'clipboard' | 'media'
             
             // Ticket Modal State
             const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
@@ -150,6 +174,9 @@
             const [isClipboardModalOpen, setIsClipboardModalOpen] = useState(false);
             const [editingClipboard, setEditingClipboard] = useState(null);
             const clipboardInputRef = useRef(null);
+
+            // Media State
+            const [uploading, setUploading] = useState(false);
             
             // Form State (Ticket)
             const [formData, setFormData] = useState({
@@ -210,9 +237,19 @@
                     setClipboards(sortedClip);
                 }, (error) => console.error("Clipboard Firestore error:", error));
 
+                // Fetch Media
+                const mediaRef = collection(db, 'artifacts', appId, 'public', 'data', 'media');
+                const qMedia = query(mediaRef);
+                const unsubMedia = onSnapshot(qMedia, (snapshot) => {
+                    const mData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    const sortedMedia = mData.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+                    setMediaItems(sortedMedia);
+                }, (error) => console.error("Media Firestore error:", error));
+
                 return () => {
                     unsubTickets();
                     unsubClipboards();
+                    unsubMedia();
                 };
             }, [user]);
 
@@ -266,7 +303,10 @@
 
             const handlePermanentDelete = async (id, type = 'ticket') => {
                 if (!user || !confirm("PERMANENTLY DELETE? THIS CANNOT BE UNDONE.")) return;
-                const collectionName = type === 'ticket' ? 'tickets' : 'clipboards';
+                let collectionName = 'tickets';
+                if (type === 'clipboard') collectionName = 'clipboards';
+                if (type === 'media') collectionName = 'media';
+                
                 await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, id));
             };
 
@@ -320,7 +360,6 @@
                 try {
                     await navigator.clipboard.writeText(text);
                 } catch (err) {
-                    // Fallback
                     const textArea = document.createElement("textarea");
                     textArea.value = text;
                     document.body.appendChild(textArea);
@@ -341,6 +380,44 @@
                 }
             };
 
+            // --- MEDIA ACTIONS ---
+            const handleFileUpload = async (e) => {
+                const file = e.target.files[0];
+                if (!file || !user) return;
+
+                setUploading(true);
+                try {
+                    // Create a unique filename
+                    const fileName = `${Date.now()}_${file.name}`;
+                    // Use the initialized 'storage' instance which has the correct bucket
+                    const storageRef = ref(storage, `artifacts/${appId}/public/${fileName}`);
+                    
+                    // Upload raw file
+                    await uploadBytes(storageRef, file);
+                    
+                    // Get URL
+                    const downloadURL = await getDownloadURL(storageRef);
+                    
+                    // Save to Firestore
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'media'), {
+                        url: downloadURL,
+                        name: file.name,
+                        type: file.type, // 'image/png', 'video/mp4' etc.
+                        size: file.size,
+                        timestamp: serverTimestamp(),
+                        createdBy: user.uid,
+                        storagePath: `artifacts/${appId}/public/${fileName}`
+                    });
+                    
+                } catch (error) {
+                    console.error("Upload failed", error);
+                    alert("Upload failed. Check console for details (often CORS or Permissions).");
+                } finally {
+                    setUploading(false);
+                }
+            };
+
+            // --- RENDER ---
             if (loading) {
                 return (
                     <div className="min-h-screen flex items-center justify-center p-4 bg-yellow-300">
@@ -362,7 +439,7 @@
                     <div className="max-w-7xl mx-auto w-full mb-8 flex flex-col md:flex-row justify-between items-center gap-6">
                         <div className="bg-black text-white p-4 border-4 border-black shadow-[8px_8px_0px_0px_#FF00FF] transform -rotate-1 hover:rotate-0 transition-transform cursor-default">
                             <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter">
-                                {viewMode === 'board' ? 'TICKET_MSTR' : viewMode === 'archive' ? 'ARCHIVE_VAULT' : 'CLIPBOARD_DB'}
+                                {viewMode === 'board' ? 'TICKET_MSTR' : viewMode === 'archive' ? 'ARCHIVE_VAULT' : viewMode === 'clipboard' ? 'CLIPBOARD_DB' : 'MEDIA_GALLERY'}
                             </h1>
                         </div>
                         
@@ -378,12 +455,21 @@
                             </BrutalButton>
 
                             <BrutalButton
+                                onClick={() => setViewMode(viewMode === 'media' ? 'board' : 'media')}
+                                color={viewMode === 'media' ? 'bg-cyan-400' : 'bg-gray-200'}
+                                icon={IconImage}
+                                title="Go to Media Gallery"
+                            >
+                                Media
+                            </BrutalButton>
+
+                            <BrutalButton
                                 onClick={() => setViewMode(viewMode === 'clipboard' ? 'board' : 'clipboard')}
                                 color={viewMode === 'clipboard' ? 'bg-pink-400' : 'bg-gray-200'}
                                 icon={IconClipboard}
                                 title="Go to Clipboard"
                             >
-                                Clipboard
+                                Clip
                             </BrutalButton>
                             
                             {viewMode === 'board' && (
@@ -515,6 +601,88 @@
                                             <BrutalButton onClick={() => handlePermanentDelete(ticket.id)} color="bg-red-500" className="text-white flex-1 md:flex-none text-sm" icon={IconTrash}>Burn</BrutalButton>
                                         </div>
                                     </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* --- MEDIA VIEW --- */}
+                    {viewMode === 'media' && (
+                        <div className="max-w-6xl mx-auto w-full">
+                            <BrutalCard className="mb-8 bg-cyan-200 border-black">
+                                <div className="flex flex-col md:flex-row items-center gap-6">
+                                    <div className="bg-white p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                                        <IconImage />
+                                    </div>
+                                    <div className="flex-grow">
+                                        <h2 className="text-2xl font-black uppercase">Media Gallery</h2>
+                                        <p className="font-mono text-sm">Original files hosted on storage. Images & Videos supported.</p>
+                                    </div>
+                                    
+                                    <div className="w-full md:w-auto">
+                                        <label className={`block w-full cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                                            <div className="bg-white border-4 border-black border-dashed p-4 flex flex-col items-center justify-center gap-2 hover:bg-cyan-50 transition-colors">
+                                                {uploading ? (
+                                                    <span className="font-black animate-pulse">UPLOADING...</span>
+                                                ) : (
+                                                    <>
+                                                        <div className="flex items-center gap-2 font-black uppercase">
+                                                            <IconUpload /> Upload Media
+                                                        </div>
+                                                        <span className="text-xs text-gray-500">Supports IMG/VID</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                            <input 
+                                                type="file" 
+                                                accept="image/*,video/*" 
+                                                className="hidden" 
+                                                onChange={handleFileUpload} 
+                                                disabled={uploading}
+                                            />
+                                        </label>
+                                    </div>
+                                </div>
+                            </BrutalCard>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {mediaItems.length === 0 && (
+                                    <div className="col-span-full border-4 border-dashed border-gray-400 p-12 text-center text-gray-500 font-bold uppercase text-xl">
+                                        Gallery is empty.
+                                    </div>
+                                )}
+                                {mediaItems.map(item => (
+                                    <BrutalCard key={item.id} className="p-0 overflow-hidden flex flex-col bg-white">
+                                        <div className="border-b-4 border-black relative bg-gray-100 aspect-video flex items-center justify-center group">
+                                            {item.type.startsWith('video') ? (
+                                                <video 
+                                                    src={item.url} 
+                                                    controls 
+                                                    className="w-full h-full object-contain"
+                                                />
+                                            ) : (
+                                                <img 
+                                                    src={item.url} 
+                                                    alt={item.name} 
+                                                    className="w-full h-full object-cover"
+                                                    loading="lazy"
+                                                />
+                                            )}
+                                        </div>
+                                        <div className="p-3 flex justify-between items-start gap-2">
+                                            <div className="overflow-hidden">
+                                                <p className="font-bold text-xs truncate uppercase" title={item.name}>{item.name}</p>
+                                                <p className="text-[10px] text-gray-500 font-mono mt-1">{(item.size / 1024 / 1024).toFixed(2)} MB</p>
+                                            </div>
+                                            <button 
+                                                onClick={() => handlePermanentDelete(item.id, 'media')}
+                                                className="bg-red-500 text-white p-2 border-2 border-black hover:bg-red-600 transition-colors shrink-0"
+                                                title="Delete Permanently"
+                                            >
+                                                <IconTrash />
+                                            </button>
+                                        </div>
+                                    </BrutalCard>
                                 ))}
                             </div>
                         </div>
