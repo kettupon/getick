@@ -54,6 +54,15 @@
         input[type="file"]::file-selector-button:hover {
             background-color: #f0f0f0;
         }
+
+        /* Video/Image hover overlay */
+        .media-overlay {
+            background: rgba(0,0,0,0.3);
+            transition: background 0.2s;
+        }
+        .group:hover .media-overlay {
+            background: rgba(0,0,0,0.1);
+        }
     </style>
 </head>
 <body>
@@ -69,8 +78,6 @@
         import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
         // --- Firebase Configuration ---
-        // Robust config loading: Mixes environment variables with hardcoded fallbacks
-        // This ensures 'storageBucket' is present even if __firebase_config is incomplete
         const rawConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
         const firebaseConfig = {
             apiKey: rawConfig.apiKey || "AIzaSyDleZCKN549FWvW1Fq_Qb-NVpYi1lD2ISU",
@@ -85,7 +92,7 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
         
-        // Explicitly initialize storage with the GS Bucket URI to fix potential "default bucket" errors
+        // Explicitly initialize storage with the GS Bucket URI
         const storage = getStorage(app, "gs://studio-7874976757-9640e.firebasestorage.app");
         
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'ticket-master-global';
@@ -109,6 +116,8 @@
         const IconPaste = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>;
         const IconImage = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>;
         const IconUpload = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>;
+        const IconPlay = () => <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="rgba(255,255,255,0.9)" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>;
+        const IconMaximize = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>;
 
         // --- UI Components ---
         const BrutalButton = ({ children, onClick, color = "bg-white", className = "", icon: Icon, disabled = false, title }) => (
@@ -157,6 +166,43 @@
             </div>
         );
 
+        // --- Lightbox Component ---
+        const Lightbox = ({ item, onClose }) => {
+            if (!item) return null;
+
+            const isVideo = item.type.startsWith('video');
+
+            return (
+                <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 md:p-10 backdrop-blur-md" onClick={onClose}>
+                    <button onClick={onClose} className="absolute top-6 right-6 text-white hover:text-red-500 transition-colors">
+                        <IconX />
+                    </button>
+                    
+                    <div className="relative max-w-full max-h-full flex flex-col items-center" onClick={e => e.stopPropagation()}>
+                        <div className="border-4 border-white shadow-[0px_0px_20px_rgba(0,0,0,0.5)] bg-black">
+                            {isVideo ? (
+                                <video 
+                                    src={item.url} 
+                                    controls 
+                                    autoPlay 
+                                    className="max-h-[80vh] max-w-full object-contain"
+                                />
+                            ) : (
+                                <img 
+                                    src={item.url} 
+                                    alt={item.name} 
+                                    className="max-h-[80vh] max-w-full object-contain"
+                                />
+                            )}
+                        </div>
+                        <div className="mt-4 bg-white border-4 border-black p-2 text-center brutal-shadow">
+                            <p className="font-bold text-sm uppercase">{item.name}</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         // --- Main App Component ---
         function App() {
             const [tickets, setTickets] = useState([]);
@@ -177,6 +223,7 @@
 
             // Media State
             const [uploading, setUploading] = useState(false);
+            const [lightboxItem, setLightboxItem] = useState(null); // For selected media
             
             // Form State (Ticket)
             const [formData, setFormData] = useState({
@@ -389,7 +436,6 @@
                 try {
                     // Create a unique filename
                     const fileName = `${Date.now()}_${file.name}`;
-                    // Use the initialized 'storage' instance which has the correct bucket
                     const storageRef = ref(storage, `artifacts/${appId}/public/${fileName}`);
                     
                     // Upload raw file
@@ -616,7 +662,7 @@
                                     </div>
                                     <div className="flex-grow">
                                         <h2 className="text-2xl font-black uppercase">Media Gallery</h2>
-                                        <p className="font-mono text-sm">Original files hosted on storage. Images & Videos supported.</p>
+                                        <p className="font-mono text-sm">Videos load low-bandwidth posters. Click any item to view Full Quality.</p>
                                     </div>
                                     
                                     <div className="w-full md:w-auto">
@@ -653,29 +699,54 @@
                                 )}
                                 {mediaItems.map(item => (
                                     <BrutalCard key={item.id} className="p-0 overflow-hidden flex flex-col bg-white">
-                                        <div className="border-b-4 border-black relative bg-gray-100 aspect-video flex items-center justify-center group">
+                                        {/* Media Preview Container */}
+                                        <div 
+                                            className="border-b-4 border-black relative bg-gray-100 aspect-video flex items-center justify-center group cursor-pointer overflow-hidden"
+                                            onClick={() => setLightboxItem(item)}
+                                        >
                                             {item.type.startsWith('video') ? (
-                                                <video 
-                                                    src={item.url} 
-                                                    controls 
-                                                    className="w-full h-full object-contain"
-                                                />
+                                                <>
+                                                    {/* Video "Thumbnail" Strategy: Load only metadata and 0.5s frame */}
+                                                    <video 
+                                                        src={`${item.url}#t=0.5`}
+                                                        preload="metadata"
+                                                        className="w-full h-full object-cover opacity-80"
+                                                    />
+                                                    {/* Custom Overlay for Click-to-Play */}
+                                                    <div className="absolute inset-0 flex items-center justify-center media-overlay">
+                                                        <div className="transform transition-transform group-hover:scale-125">
+                                                            <IconPlay />
+                                                        </div>
+                                                    </div>
+                                                </>
                                             ) : (
-                                                <img 
-                                                    src={item.url} 
-                                                    alt={item.name} 
-                                                    className="w-full h-full object-cover"
-                                                    loading="lazy"
-                                                />
+                                                <>
+                                                    <img 
+                                                        src={item.url} 
+                                                        alt={item.name} 
+                                                        className="w-full h-full object-cover"
+                                                        loading="lazy"
+                                                    />
+                                                    {/* Hover Overlay indicating clickability */}
+                                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 media-overlay transition-opacity">
+                                                        <div className="bg-white border-2 border-black p-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                                                            <IconMaximize />
+                                                        </div>
+                                                    </div>
+                                                </>
                                             )}
                                         </div>
+                                        
                                         <div className="p-3 flex justify-between items-start gap-2">
                                             <div className="overflow-hidden">
                                                 <p className="font-bold text-xs truncate uppercase" title={item.name}>{item.name}</p>
                                                 <p className="text-[10px] text-gray-500 font-mono mt-1">{(item.size / 1024 / 1024).toFixed(2)} MB</p>
                                             </div>
                                             <button 
-                                                onClick={() => handlePermanentDelete(item.id, 'media')}
+                                                onClick={(e) => {
+                                                    e.stopPropagation(); // Prevent opening lightbox
+                                                    handlePermanentDelete(item.id, 'media');
+                                                }}
                                                 className="bg-red-500 text-white p-2 border-2 border-black hover:bg-red-600 transition-colors shrink-0"
                                                 title="Delete Permanently"
                                             >
@@ -850,6 +921,11 @@
                                 </div>
                             </div>
                         </div>
+                    )}
+
+                    {/* --- LIGHTBOX MODAL --- */}
+                    {lightboxItem && (
+                        <Lightbox item={lightboxItem} onClose={() => setLightboxItem(null)} />
                     )}
 
                     <div className="fixed bottom-4 left-4 hidden lg:block opacity-30 pointer-events-none z-0">
