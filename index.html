@@ -170,7 +170,7 @@
         const Lightbox = ({ item, onClose }) => {
             if (!item) return null;
 
-            const isVideo = item.type && item.type.startsWith('video');
+            const isVideo = item.type.startsWith('video');
 
             return (
                 <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 md:p-10 backdrop-blur-md" onClick={onClose}>
@@ -209,11 +209,7 @@
             const [clipboards, setClipboards] = useState([]);
             const [mediaItems, setMediaItems] = useState([]);
             const [user, setUser] = useState(null);
-            
-            // --- Error & Loading State Management Update ---
             const [loading, setLoading] = useState(true);
-            const [errorMsg, setErrorMsg] = useState(null); 
-            
             const [viewMode, setViewMode] = useState('board'); // 'board' | 'archive' | 'clipboard' | 'media'
             
             // Ticket Modal State
@@ -259,9 +255,6 @@
                         }
                     } catch (error) {
                         console.error("Auth error:", error);
-                        // Stop infinite loading if auth completely fails
-                        setErrorMsg(`Authentication Failed: ${error.message}`);
-                        setLoading(false); 
                     }
                 };
                 initAuth();
@@ -279,13 +272,8 @@
                     const ticketData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     const sorted = ticketData.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
                     setTickets(sorted);
-                    setLoading(false); // Success path stops loading
-                }, (error) => {
-                    console.error("Ticket Firestore error:", error);
-                    // Failure path stops loading and sets error state
-                    setErrorMsg(`Database Access Error: ${error.message}`);
                     setLoading(false);
-                });
+                }, (error) => console.error("Ticket Firestore error:", error));
 
                 // Fetch Clipboards
                 const clipboardsRef = collection(db, 'artifacts', appId, 'public', 'data', 'clipboards');
@@ -476,25 +464,6 @@
             };
 
             // --- RENDER ---
-            if (errorMsg) {
-                return (
-                    <div className="min-h-screen flex items-center justify-center p-4 bg-red-400">
-                        <BrutalCard className="bg-white max-w-lg w-full">
-                            <div className="flex items-center gap-2 mb-4 text-red-600">
-                                <IconAlert />
-                                <h2 className="text-2xl font-black uppercase">Connection Error</h2>
-                            </div>
-                            <p className="font-mono text-sm font-bold bg-gray-100 p-2 border-2 border-black break-words">
-                                {errorMsg}
-                            </p>
-                            <p className="font-mono text-sm mt-4 text-gray-600">
-                                The application could not connect to the database. If you are opening this file locally (e.g., `file://`), Firebase may be blocking the connection for security reasons. Try running it on a local web server (like Live Server).
-                            </p>
-                        </BrutalCard>
-                    </div>
-                );
-            }
-
             if (loading) {
                 return (
                     <div className="min-h-screen flex items-center justify-center p-4 bg-yellow-300">
@@ -735,7 +704,7 @@
                                             className="border-b-4 border-black relative bg-gray-100 aspect-video flex items-center justify-center group cursor-pointer overflow-hidden"
                                             onClick={() => setLightboxItem(item)}
                                         >
-                                            {item.type && item.type.startsWith('video') ? (
+                                            {item.type.startsWith('video') ? (
                                                 <>
                                                     {/* Video "Thumbnail" Strategy: Load only metadata and 0.5s frame */}
                                                     <video 
