@@ -1,47 +1,138 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TICKET_MSTR | Global Kanban & Media</title>
-    <!-- Tailwind CSS -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Unified Workspace: Getick & BillGet</title>
+    
+    <!-- Tailwind & FontAwesome -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- React and Babel for JSX -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- React & Babel -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
+
+    <!-- Global App Switcher Script -->
+    <script>
+        window.switchApp = function(appName) {
+            if (appName === 'billget') {
+                document.getElementById('app-billget').style.display = 'block';
+                document.getElementById('app-ticketmstr').style.display = 'none';
+            } else {
+                document.getElementById('app-billget').style.display = 'none';
+                document.getElementById('app-ticketmstr').style.display = 'block';
+            }
+        };
+    </script>
+
     <style>
+        /* ── Fonts ── */
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
-        body { 
+        
+        body { margin: 0; -webkit-tap-highlight-color: transparent; }
+
+        /* ── App Wrapper Isolation ── */
+        .billget-wrapper { 
+            font-family: 'Kanit', sans-serif; 
+            background-color: #f7f7f7; 
+            color: #333; 
+            min-height: 100vh;
+            position: relative;
+        }
+        .ticketmstr-wrapper { 
             font-family: 'Space Mono', monospace; 
             background-color: #f0f0f0;
+            min-height: 100vh;
+            position: relative;
         }
-        .brutal-shadow { box-shadow: 4px 4px 0px 0px rgba(0,0,0,1); }
-        .brutal-shadow-lg { box-shadow: 8px 8px 0px 0px rgba(0,0,0,1); }
-        .brutal-shadow-xl { box-shadow: 16px 16px 0px 0px rgba(0,0,0,1); }
+
+        /* =====================================
+           BillGet Specific Styles
+        ===================================== */
+        .billget-wrapper .tab-active { color: #ee4d2d; border-bottom: 3px solid #ee4d2d; }
+        .billget-wrapper .shopee-orange { color: #ee4d2d; }
+        .billget-wrapper .shopee-bg-orange { background-color: #ee4d2d; }
+        .billget-wrapper .status-tag-unpaid {
+            color: #ee4d2d; background-color: #fff5f1; border: 1px solid #ffdbd1;
+            padding: 1px 6px; border-radius: 3px; font-size: 10px; display: inline-block;
+        }
+        .billget-wrapper .status-tag-paid {
+            color: #26aa99; background-color: #f0faff; border: 1px solid #c3eaff;
+            padding: 1px 6px; border-radius: 3px; font-size: 10px; display: inline-block;
+        }
+        .billget-wrapper .month-card { transition: background-color 0.1s; cursor: pointer; }
+        .billget-wrapper .month-card:active { background-color: #f9f9f9; }
+        .billget-wrapper .rotate-180 { transform: rotate(180deg); }
+        .billget-wrapper .month-btn {
+            display: flex; align-items: center; justify-content: center;
+            padding: 8px 0; border-radius: 8px; font-size: 11px; font-weight: 500;
+            border: 1px solid #e2e8f0; background-color: white; color: #64748b;
+            transition: all 0.2s; width: 100%;
+        }
+        .billget-wrapper .month-btn-active {
+            background-color: #ee4d2d; color: white; border-color: #ee4d2d;
+            box-shadow: 0 2px 4px rgba(238,77,45,0.2);
+        }
+        .billget-wrapper .no-scrollbar::-webkit-scrollbar { display: none; }
+        .billget-wrapper .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .billget-wrapper #online-badge { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #64748b; }
+        .billget-wrapper .online-dot {
+            width: 7px; height: 7px; border-radius: 50%; background: #22c55e;
+            animation: pulse-green 2s infinite;
+        }
+        @keyframes pulse-green {
+            0%,100% { box-shadow: 0 0 0 2px rgba(34,197,94,0.25); }
+            50%      { box-shadow: 0 0 0 5px rgba(34,197,94,0.0); }
+        }
+
+        .billget-wrapper #loading-overlay {
+            position: fixed; inset: 0; background: white; z-index: 200;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+
+        .billget-wrapper .bill-card-partial { background-color: #f0fdf4 !important; border-color: #bbf7d0 !important; }
+        .billget-wrapper .bill-card-full { background-color: #fefce8 !important; border-color: #fde68a !important; }
+        .billget-wrapper .month-btn-partial { background-color: #dcfce7; color: #16a34a; border-color: #86efac; }
+        .billget-wrapper .month-btn-full { background-color: #fef08a; color: #854d0e; border-color: #fde047; }
+
+        .billget-wrapper #toast {
+            position: fixed; bottom: 88px; left: 50%; transform: translateX(-50%) translateY(20px);
+            background: #1e293b; color: white; padding: 10px 20px; border-radius: 100px;
+            font-size: 12px; font-weight: 500; opacity: 0; transition: all 0.3s;
+            white-space: nowrap; z-index: 999; pointer-events: none;
+        }
+        .billget-wrapper #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+
+        /* =====================================
+           TICKET_MSTR Specific Styles
+        ===================================== */
+        .ticketmstr-wrapper .brutal-shadow { box-shadow: 4px 4px 0px 0px rgba(0,0,0,1); }
+        .ticketmstr-wrapper .brutal-shadow-lg { box-shadow: 8px 8px 0px 0px rgba(0,0,0,1); }
+        .ticketmstr-wrapper .brutal-shadow-xl { box-shadow: 16px 16px 0px 0px rgba(0,0,0,1); }
         
-        .brutal-btn-active:active { 
+        .ticketmstr-wrapper .brutal-btn-active:active { 
             transform: translate(2px, 2px); 
             box-shadow: 2px 2px 0px 0px rgba(0,0,0,1); 
         }
 
-        /* Float Animation for FAB */
         @keyframes float {
             0% { transform: translateY(0px); }
             50% { transform: translateY(-5px); }
             100% { transform: translateY(0px); }
         }
-        .animate-float { animation: float 3s ease-in-out infinite; }
+        .ticketmstr-wrapper .animate-float { animation: float 3s ease-in-out infinite; }
         
-        /* Custom scrollbar for brutalist feel */
-        ::-webkit-scrollbar { width: 12px; }
-        ::-webkit-scrollbar-track { background: #fff; border-left: 4px solid #000; }
-        ::-webkit-scrollbar-thumb { background: #000; border: 2px solid #fff; }
-        ::-webkit-scrollbar-thumb:hover { background: #333; }
+        .ticketmstr-wrapper ::-webkit-scrollbar { width: 12px; }
+        .ticketmstr-wrapper ::-webkit-scrollbar-track { background: #fff; border-left: 4px solid #000; }
+        .ticketmstr-wrapper ::-webkit-scrollbar-thumb { background: #000; border: 2px solid #fff; }
+        .ticketmstr-wrapper ::-webkit-scrollbar-thumb:hover { background: #333; }
         
-        /* File Input Styling */
-        input[type="file"]::file-selector-button {
+        .ticketmstr-wrapper input[type="file"]::file-selector-button {
             border: 2px solid #000;
             padding: 0.2em 0.4em;
             background-color: #fff;
@@ -51,892 +142,1109 @@
             cursor: pointer;
             box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
         }
-        input[type="file"]::file-selector-button:hover {
+        .ticketmstr-wrapper input[type="file"]::file-selector-button:hover {
             background-color: #f0f0f0;
         }
 
-        /* Video/Image hover overlay */
-        .media-overlay {
+        .ticketmstr-wrapper .media-overlay {
             background: rgba(0,0,0,0.3);
             transition: background 0.2s;
         }
-        .group:hover .media-overlay {
+        .ticketmstr-wrapper .group:hover .media-overlay {
             background: rgba(0,0,0,0.1);
         }
     </style>
 </head>
 <body>
+
+<!-- ========================================== -->
+<!-- APP 1: TICKET_MSTR (React App)             -->
+<!-- ========================================== -->
+<div id="app-ticketmstr" class="ticketmstr-wrapper" style="display: block;">
     <div id="root"></div>
+</div>
 
-    <script type="text/babel" data-type="module">
-        const { useState, useEffect, useRef } = React;
+<!-- ========================================== -->
+<!-- APP 2: BILLGET (Vanilla JS App)            -->
+<!-- ========================================== -->
+<div id="app-billget" class="billget-wrapper pb-24" style="display: none;">
+    <!-- Loading -->
+    <div id="loading-overlay">
+        <div class="w-16 h-16 shopee-bg-orange rounded-2xl flex items-center justify-center mb-5 shadow-lg shadow-orange-200">
+            <i class="fas fa-file-invoice text-white text-2xl"></i>
+        </div>
+        <div class="animate-spin rounded-full h-8 w-8 border-4 border-orange-100 border-t-orange-500 mb-3"></div>
+        <p class="text-sm text-slate-400">กำลังเชื่อมต่อ...</p>
+    </div>
 
-        // Import Firebase via ESM
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, doc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
-
-        // --- Firebase Configuration ---
-        const rawConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const firebaseConfig = {
-            apiKey: rawConfig.apiKey || "AIzaSyDleZCKN549FWvW1Fq_Qb-NVpYi1lD2ISU",
-            authDomain: rawConfig.authDomain || "studio-7874976757-9640e.firebaseapp.com",
-            projectId: rawConfig.projectId || "studio-7874976757-9640e",
-            storageBucket: rawConfig.storageBucket || "studio-7874976757-9640e.firebasestorage.app",
-            messagingSenderId: rawConfig.messagingSenderId || "1028425461468",
-            appId: rawConfig.appId || "1:1028425461468:web:cdf8241dd90c3b08fece19"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        
-        // Explicitly initialize storage with the GS Bucket URI
-        const storage = getStorage(app, "gs://studio-7874976757-9640e.firebasestorage.app");
-        
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'ticket-master-global';
-
-        // --- Icons (Inline SVGs) ---
-        const IconPlus = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>;
-        const IconTrash = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>;
-        const IconRight = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>;
-        const IconLeft = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>;
-        const IconAlert = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>;
-        const IconCheck = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>;
-        const IconClock = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>;
-        const IconX = () => <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
-        const IconArchive = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>;
-        const IconPencil = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>;
-        const IconFile = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>;
-        const IconCode = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>;
-        const IconUndo = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>;
-        const IconClipboard = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>;
-        const IconCopy = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>;
-        const IconPaste = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>;
-        const IconImage = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>;
-        const IconUpload = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>;
-        const IconPlay = () => <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="rgba(255,255,255,0.9)" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>;
-        const IconMaximize = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>;
-
-        // --- UI Components ---
-        const BrutalButton = ({ children, onClick, color = "bg-white", className = "", icon: Icon, disabled = false, title }) => (
-            <button
-                onClick={onClick}
-                disabled={disabled}
-                title={title}
-                className={`${color} border-4 border-black px-4 py-2 font-bold font-mono text-black uppercase tracking-wider brutal-shadow brutal-btn-active disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-100 flex items-center justify-center gap-2 ${className}`}
-            >
-                {Icon && <Icon />}
-                {children}
+    <!-- Header -->
+    <header class="bg-white sticky top-0 z-20 shadow-sm">
+        <div class="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
+            <!-- Navigate back to TICKET_MSTR -->
+            <button onclick="window.switchApp('ticketmstr')" class="text-[11px] bg-indigo-600 text-white px-3 py-1.5 rounded-full font-bold shadow flex items-center gap-1.5 hover:bg-indigo-700 transition">
+                <i class="fas fa-ticket-alt"></i> GETICK
             </button>
-        );
-
-        const BrutalCard = ({ children, className = "", color = "bg-white", borderColor = "border-black" }) => (
-            <div className={`${color} border-4 ${borderColor} p-4 brutal-shadow-lg ${className}`}>
-                {children}
+            <div class="flex flex-col items-center gap-0.5">
+                <h1 class="text-[15px] font-medium text-slate-800 leading-tight">บิลของเรา</h1>
+                <div id="online-badge">
+                    <div class="online-dot"></div>
+                    <span id="online-count">กำลังโหลด...</span>
+                </div>
             </div>
-        );
+            <button onclick="openOverview()" class="w-8 h-8 flex items-center justify-center text-orange-500 hover:bg-orange-50 rounded-full">
+                <i class="fas fa-chart-pie"></i>
+            </button>
+        </div>
+        <div class="max-w-md mx-auto flex border-b border-slate-100">
+            <button onclick="switchDashboardView('unpaid')" id="tab-unpaid" class="flex-1 py-3 text-center text-[15px] font-medium tab-active">ยังไม่ได้ชำระ</button>
+            <button onclick="switchDashboardView('paid')"   id="tab-paid"   class="flex-1 py-3 text-center text-[15px] font-medium text-slate-500">ชำระแล้ว</button>
+        </div>
+    </header>
 
-        const BrutalInput = ({ value, onChange, placeholder, className = "", autoFocus = false, label }) => (
-            <div className="w-full">
-                {label && <label className="block font-black uppercase text-xs mb-1 tracking-widest">{label}</label>}
-                <input
-                    type="text"
-                    value={value || ''}
-                    onChange={onChange}
-                    placeholder={placeholder}
-                    autoFocus={autoFocus}
-                    className={`w-full bg-white border-4 border-black p-3 font-mono font-bold text-black placeholder-gray-400 focus:outline-none focus:bg-yellow-100 transition-colors ${className}`}
-                />
+    <main class="max-w-md mx-auto min-h-screen">
+        <div id="tab-dashboard" class="tab-panel">
+            <div class="px-4 py-3 text-[14px] text-slate-500">สรุปยอดรายเดือน</div>
+            <div id="dashboard-month-list" class="space-y-2"></div>
+        </div>
+        <div id="tab-cards" class="tab-panel hidden p-4">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="font-bold text-slate-800 text-lg">จัดการบัตร</h2>
+                <button onclick="openModal('card-modal')" class="shopee-bg-orange text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-sm">+ เพิ่มบัตร</button>
             </div>
-        );
-
-        const BrutalTextArea = ({ value, onChange, placeholder, className = "", label, rows = 4, inputRef }) => (
-            <div className="w-full">
-                {label && <label className="block font-black uppercase text-xs mb-1 tracking-widest">{label}</label>}
-                <textarea
-                    ref={inputRef}
-                    value={value || ''}
-                    onChange={onChange}
-                    placeholder={placeholder}
-                    rows={rows}
-                    className={`w-full bg-white border-4 border-black p-3 font-mono font-bold text-black placeholder-gray-400 focus:outline-none focus:bg-yellow-100 resize-none transition-colors ${className}`}
-                />
+            <div id="card-list" class="space-y-3"></div>
+        </div>
+        <div id="tab-bills" class="tab-panel hidden p-4">
+            <div class="mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h2 class="font-bold text-slate-800">บันทึกยอดบิล</h2>
+                        <p class="text-[10px] text-slate-400">ระบุยอดที่ใช้จริงในแต่ละเดือน</p>
+                    </div>
+                    <select id="entry-year" onchange="renderBillList()" class="text-xs border border-slate-200 rounded-lg px-3 py-1.5 bg-white font-medium outline-none focus:border-orange-500"></select>
+                </div>
+                <div id="month-quick-select" class="grid grid-cols-6 gap-2"></div>
             </div>
-        );
+            <div id="bill-entry-list" class="space-y-3"></div>
+        </div>
+    </main>
 
-        // --- Lightbox Component ---
-        const Lightbox = ({ item, onClose }) => {
-            if (!item) return null;
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 flex justify-around py-3 z-20 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+        <button onclick="switchTab('dashboard')" class="nav-btn flex flex-col items-center gap-1 shopee-orange" id="nav-dashboard">
+            <i class="fas fa-file-invoice text-xl"></i><span class="text-[10px] font-medium">บิล</span>
+        </button>
+        <button onclick="switchTab('cards')" class="nav-btn flex flex-col items-center gap-1 text-slate-400" id="nav-cards">
+            <i class="fas fa-credit-card text-xl"></i><span class="text-[10px] font-medium">บัตร</span>
+        </button>
+        <button onclick="switchTab('bills')" class="nav-btn flex flex-col items-center gap-1 text-slate-400" id="nav-bills">
+            <i class="fas fa-edit text-xl"></i><span class="text-[10px] font-medium">ลงยอด</span>
+        </button>
+    </nav>
 
-            const isVideo = item.type.startsWith('video');
+    <!-- Overview Modal -->
+    <div id="overview-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white w-full max-w-md rounded-2xl overflow-hidden shadow-2xl h-[85vh] flex flex-col">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h3 class="text-lg font-bold text-slate-800">ภาพรวม</h3>
+                <button onclick="closeModal('overview-modal')" class="text-slate-400 p-1"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-orange-50 p-4 rounded-xl border border-orange-100">
+                        <p class="text-[10px] font-bold text-orange-400 uppercase mb-1">ค้างชำระ</p>
+                        <p id="ov-total-unpaid" class="text-xl font-bold text-orange-600">฿0</p>
+                    </div>
+                    <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                        <p class="text-[10px] font-bold text-emerald-400 uppercase mb-1">ชำระแล้ว (ปีนี้)</p>
+                        <p id="ov-total-paid" class="text-xl font-bold text-emerald-600">฿0</p>
+                    </div>
+                </div>
+                <div class="bg-slate-50 p-5 rounded-2xl">
+                    <h4 class="text-xs font-bold text-slate-400 uppercase mb-4 tracking-wider">การใช้วงเงิน</h4>
+                    <div id="usage-bars" class="space-y-4"></div>
+                </div>
+                <div>
+                    <h4 class="text-xs font-bold text-slate-400 uppercase mb-4 tracking-wider">แนวโน้ม 6 เดือนล่าสุด</h4>
+                    <div class="flex items-end justify-between h-32 gap-2 px-2" id="trend-bars"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-            return (
-                <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 md:p-10 backdrop-blur-md" onClick={onClose}>
-                    <button onClick={onClose} className="absolute top-6 right-6 text-white hover:text-red-500 transition-colors">
-                        <IconX />
-                    </button>
-                    
-                    <div className="relative max-w-full max-h-full flex flex-col items-center" onClick={e => e.stopPropagation()}>
-                        <div className="border-4 border-white shadow-[0px_0px_20px_rgba(0,0,0,0.5)] bg-black">
-                            {isVideo ? (
-                                <video 
-                                    src={item.url} 
-                                    controls 
-                                    autoPlay 
-                                    className="max-h-[80vh] max-w-full object-contain"
-                                />
-                            ) : (
-                                <img 
-                                    src={item.url} 
-                                    alt={item.name} 
-                                    className="max-h-[80vh] max-w-full object-contain"
-                                />
-                            )}
+    <!-- Card Modal -->
+    <div id="card-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-6 backdrop-blur-sm">
+        <div class="bg-white w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl">
+            <div class="p-6">
+                <h3 class="text-lg font-bold mb-5 text-slate-800 border-b pb-3">ข้อมูลบัตร</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-400 uppercase mb-1 tracking-wider">ชื่อบัตร</label>
+                        <input type="text" id="m-card-name" placeholder="เช่น SCB, KBank" class="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-orange-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-400 uppercase mb-1 tracking-wider">วงเงิน</label>
+                        <input type="number" id="m-card-limit" placeholder="0.00" class="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-orange-500">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-400 uppercase mb-1 tracking-wider">วันตัดรอบ</label>
+                            <input type="number" id="m-card-cycle" min="1" max="31" class="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-orange-500">
                         </div>
-                        <div className="mt-4 bg-white border-4 border-black p-2 text-center brutal-shadow">
-                            <p className="font-bold text-sm uppercase">{item.name}</p>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-400 uppercase mb-1 tracking-wider">วันจ่าย</label>
+                            <input type="number" id="m-card-due" min="1" max="31" class="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-orange-500">
                         </div>
                     </div>
                 </div>
-            );
+                <div class="flex gap-3 mt-8">
+                    <button onclick="closeModal('card-modal')" class="flex-1 py-3 text-slate-400 text-sm font-bold">ยกเลิก</button>
+                    <button onclick="handleSaveCard()" class="flex-1 py-3 shopee-bg-orange text-white rounded-xl text-sm font-bold shadow-md">บันทึก</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div id="pay-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-end justify-center backdrop-blur-sm">
+        <div class="bg-white w-full max-w-md rounded-t-3xl shadow-2xl overflow-hidden">
+            <div class="w-10 h-1 bg-slate-200 rounded-full mx-auto mt-3 mb-1"></div>
+            <div class="p-6">
+                <div class="flex items-center gap-3 mb-5">
+                    <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-check text-green-500"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-[16px]" id="pay-modal-title">บันทึกการชำระ</h3>
+                        <p class="text-[11px] text-slate-400" id="pay-modal-sub">ครบกำหนด —</p>
+                    </div>
+                </div>
+
+                <!-- Amount choice -->
+                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">ยอดที่ชำระ</p>
+                <div class="grid grid-cols-2 gap-2 mb-3">
+                    <button id="pay-btn-full" onclick="selectPayType('full')"
+                        class="py-3 rounded-xl border-2 border-green-400 bg-green-50 text-green-700 text-xs font-bold transition-all">
+                        <i class="fas fa-equals mr-1"></i>จ่ายเต็มยอด
+                        <div id="pay-full-amt" class="text-[10px] font-normal text-green-500 mt-0.5"></div>
+                    </button>
+                    <button id="pay-btn-custom" onclick="selectPayType('custom')"
+                        class="py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-500 text-xs font-bold transition-all">
+                        <i class="fas fa-pen mr-1"></i>กรอกเอง
+                    </button>
+                </div>
+                <div id="pay-custom-input" class="hidden mb-3">
+                    <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase">ระบุยอดที่จ่ายจริง (฿)</label>
+                    <input type="number" id="pay-amount-input" placeholder="0.00"
+                        class="w-full border-b-2 border-orange-400 py-2 text-2xl font-bold outline-none text-slate-800">
+                </div>
+
+                <!-- On time / late -->
+                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 mt-4">สถานะการจ่าย</p>
+                <div class="grid grid-cols-2 gap-2 mb-6">
+                    <button id="timing-btn-ontime" onclick="selectTiming('ontime')"
+                        class="py-3 rounded-xl border-2 border-emerald-400 bg-emerald-50 text-emerald-700 text-xs font-bold transition-all">
+                        <i class="fas fa-clock mr-1"></i>จ่ายตรงกำหนด
+                    </button>
+                    <button id="timing-btn-late" onclick="selectTiming('late')"
+                        class="py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-500 text-xs font-bold transition-all">
+                        <i class="fas fa-hourglass-half mr-1"></i>จ่ายช้ากว่ากำหนด
+                    </button>
+                </div>
+
+                <div class="flex gap-3">
+                    <button onclick="cancelPayModal()" class="flex-1 py-3 text-slate-400 text-sm font-bold rounded-xl bg-slate-50">ยกเลิก</button>
+                    <button onclick="confirmPayModal()" class="flex-1 py-3 shopee-bg-orange text-white rounded-xl text-sm font-bold shadow-md">บันทึก ✓</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast"></div>
+</div>
+
+
+<!-- ========================================== -->
+<!-- JS LOGIC: TICKET_MSTR                      -->
+<!-- ========================================== -->
+<script type="text/babel" data-type="module">
+    const { useState, useEffect, useRef } = React;
+
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, onSnapshot, query, doc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+
+    const rawConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+    const firebaseConfig = {
+        apiKey: rawConfig.apiKey || "AIzaSyDleZCKN549FWvW1Fq_Qb-NVpYi1lD2ISU",
+        authDomain: rawConfig.authDomain || "studio-7874976757-9640e.firebaseapp.com",
+        projectId: rawConfig.projectId || "studio-7874976757-9640e",
+        storageBucket: rawConfig.storageBucket || "studio-7874976757-9640e.firebasestorage.app",
+        messagingSenderId: rawConfig.messagingSenderId || "1028425461468",
+        appId: rawConfig.appId || "1:1028425461468:web:cdf8241dd90c3b08fece19"
+    };
+
+    // Note: Use a specific app name to avoid conflicting with BillGet
+    const app = initializeApp(firebaseConfig, "TicketMstrApp");
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const storage = getStorage(app, "gs://studio-7874976757-9640e.firebasestorage.app");
+    
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'ticket-master-global';
+
+    // --- Icons (Inline SVGs) ---
+    const IconPlus = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>;
+    const IconTrash = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>;
+    const IconRight = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>;
+    const IconLeft = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>;
+    const IconAlert = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>;
+    const IconCheck = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>;
+    const IconClock = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>;
+    const IconX = () => <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
+    const IconArchive = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>;
+    const IconPencil = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>;
+    const IconFile = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>;
+    const IconCode = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>;
+    const IconUndo = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>;
+    const IconClipboard = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>;
+    const IconCopy = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>;
+    const IconPaste = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>;
+    const IconImage = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>;
+    const IconUpload = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>;
+    const IconPlay = () => <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="rgba(255,255,255,0.9)" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>;
+    const IconMaximize = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>;
+
+    // --- UI Components ---
+    const BrutalButton = ({ children, onClick, color = "bg-white", className = "", icon: Icon, disabled = false, title }) => (
+        <button
+            onClick={onClick}
+            disabled={disabled}
+            title={title}
+            className={`${color} border-4 border-black px-4 py-2 font-bold font-mono text-black uppercase tracking-wider brutal-shadow brutal-btn-active disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-100 flex items-center justify-center gap-2 ${className}`}
+        >
+            {Icon && <Icon />}
+            {children}
+        </button>
+    );
+
+    const BrutalCard = ({ children, className = "", color = "bg-white", borderColor = "border-black" }) => (
+        <div className={`${color} border-4 ${borderColor} p-4 brutal-shadow-lg ${className}`}>
+            {children}
+        </div>
+    );
+
+    const BrutalInput = ({ value, onChange, placeholder, className = "", autoFocus = false, label }) => (
+        <div className="w-full">
+            {label && <label className="block font-black uppercase text-xs mb-1 tracking-widest">{label}</label>}
+            <input
+                type="text"
+                value={value || ''}
+                onChange={onChange}
+                placeholder={placeholder}
+                autoFocus={autoFocus}
+                className={`w-full bg-white border-4 border-black p-3 font-mono font-bold text-black placeholder-gray-400 focus:outline-none focus:bg-yellow-100 transition-colors ${className}`}
+            />
+        </div>
+    );
+
+    const BrutalTextArea = ({ value, onChange, placeholder, className = "", label, rows = 4, inputRef }) => (
+        <div className="w-full">
+            {label && <label className="block font-black uppercase text-xs mb-1 tracking-widest">{label}</label>}
+            <textarea
+                ref={inputRef}
+                value={value || ''}
+                onChange={onChange}
+                placeholder={placeholder}
+                rows={rows}
+                className={`w-full bg-white border-4 border-black p-3 font-mono font-bold text-black placeholder-gray-400 focus:outline-none focus:bg-yellow-100 resize-none transition-colors ${className}`}
+            />
+        </div>
+    );
+
+    const Lightbox = ({ item, onClose }) => {
+        if (!item) return null;
+        const isVideo = item.type.startsWith('video');
+        return (
+            <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 md:p-10 backdrop-blur-md" onClick={onClose}>
+                <button onClick={onClose} className="absolute top-6 right-6 text-white hover:text-red-500 transition-colors">
+                    <IconX />
+                </button>
+                <div className="relative max-w-full max-h-full flex flex-col items-center" onClick={e => e.stopPropagation()}>
+                    <div className="border-4 border-white shadow-[0px_0px_20px_rgba(0,0,0,0.5)] bg-black">
+                        {isVideo ? (
+                            <video src={item.url} controls autoPlay className="max-h-[80vh] max-w-full object-contain" />
+                        ) : (
+                            <img src={item.url} alt={item.name} className="max-h-[80vh] max-w-full object-contain" />
+                        )}
+                    </div>
+                    <div className="mt-4 bg-white border-4 border-black p-2 text-center brutal-shadow">
+                        <p className="font-bold text-sm uppercase">{item.name}</p>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    function App() {
+        const [tickets, setTickets] = useState([]);
+        const [clipboards, setClipboards] = useState([]);
+        const [mediaItems, setMediaItems] = useState([]);
+        const [user, setUser] = useState(null);
+        const [loading, setLoading] = useState(true);
+        const [viewMode, setViewMode] = useState('board'); 
+        
+        const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
+        const [editingTicket, setEditingTicket] = useState(null);
+        
+        const [isClipboardModalOpen, setIsClipboardModalOpen] = useState(false);
+        const [editingClipboard, setEditingClipboard] = useState(null);
+        const clipboardInputRef = useRef(null);
+
+        const [uploading, setUploading] = useState(false);
+        const [lightboxItem, setLightboxItem] = useState(null); 
+        
+        const [formData, setFormData] = useState({ title: '', description: '', appVersion: '', fileLocate: '' });
+        const [clipboardData, setClipboardData] = useState({ content: '' });
+
+        const stages = {
+            report: { label: 'REPORT', color: 'bg-red-500', textColor: 'text-white', icon: IconAlert },
+            doing: { label: 'DOING', color: 'bg-yellow-400', textColor: 'text-black', icon: IconClock },
+            complete: { label: 'COMPLETE', color: 'bg-green-500', textColor: 'text-black', icon: IconCheck }
         };
 
-        // --- Main App Component ---
-        function App() {
-            const [tickets, setTickets] = useState([]);
-            const [clipboards, setClipboards] = useState([]);
-            const [mediaItems, setMediaItems] = useState([]);
-            const [user, setUser] = useState(null);
-            const [loading, setLoading] = useState(true);
-            const [viewMode, setViewMode] = useState('board'); // 'board' | 'archive' | 'clipboard' | 'media'
-            
-            // Ticket Modal State
-            const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
-            const [editingTicket, setEditingTicket] = useState(null);
-            
-            // Clipboard Modal State
-            const [isClipboardModalOpen, setIsClipboardModalOpen] = useState(false);
-            const [editingClipboard, setEditingClipboard] = useState(null);
-            const clipboardInputRef = useRef(null);
+        useEffect(() => {
+            const initAuth = async () => {
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (error) { console.error("Auth error:", error); }
+            };
+            initAuth();
+            const unsubscribe = onAuthStateChanged(auth, setUser);
+            return () => unsubscribe();
+        }, []);
 
-            // Media State
-            const [uploading, setUploading] = useState(false);
-            const [lightboxItem, setLightboxItem] = useState(null); // For selected media
+        useEffect(() => {
+            if (!user) return;
             
-            // Form State (Ticket)
-            const [formData, setFormData] = useState({
-                title: '',
-                description: '',
-                appVersion: '',
-                fileLocate: ''
+            const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
+            const unsubTickets = onSnapshot(query(ticketsRef), (snapshot) => {
+                const ticketData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setTickets(ticketData.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0)));
+                setLoading(false);
             });
 
-            // Form State (Clipboard)
-            const [clipboardData, setClipboardData] = useState({
-                content: ''
+            const clipboardsRef = collection(db, 'artifacts', appId, 'public', 'data', 'clipboards');
+            const unsubClipboards = onSnapshot(query(clipboardsRef), (snapshot) => {
+                const clipData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setClipboards(clipData.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0)));
             });
 
-            const stages = {
-                report: { label: 'REPORT', color: 'bg-red-500', textColor: 'text-white', icon: IconAlert },
-                doing: { label: 'DOING', color: 'bg-yellow-400', textColor: 'text-black', icon: IconClock },
-                complete: { label: 'COMPLETE', color: 'bg-green-500', textColor: 'text-black', icon: IconCheck }
-            };
+            const mediaRef = collection(db, 'artifacts', appId, 'public', 'data', 'media');
+            const unsubMedia = onSnapshot(query(mediaRef), (snapshot) => {
+                const mData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setMediaItems(mData.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0)));
+            });
 
-            // Auth & Data Sync
-            useEffect(() => {
-                const initAuth = async () => {
-                    try {
-                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            await signInWithCustomToken(auth, __initial_auth_token);
-                        } else {
-                            await signInAnonymously(auth);
-                        }
-                    } catch (error) {
-                        console.error("Auth error:", error);
-                    }
-                };
-                initAuth();
-                const unsubscribe = onAuthStateChanged(auth, setUser);
-                return () => unsubscribe();
-            }, []);
+            return () => { unsubTickets(); unsubClipboards(); unsubMedia(); };
+        }, [user]);
 
-            useEffect(() => {
-                if (!user) return;
-                
-                // Fetch Tickets
-                const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
-                const qTickets = query(ticketsRef);
-                const unsubTickets = onSnapshot(qTickets, (snapshot) => {
-                    const ticketData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    const sorted = ticketData.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-                    setTickets(sorted);
-                    setLoading(false);
-                }, (error) => console.error("Ticket Firestore error:", error));
-
-                // Fetch Clipboards
-                const clipboardsRef = collection(db, 'artifacts', appId, 'public', 'data', 'clipboards');
-                const qClipboards = query(clipboardsRef);
-                const unsubClipboards = onSnapshot(qClipboards, (snapshot) => {
-                    const clipData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    const sortedClip = clipData.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-                    setClipboards(sortedClip);
-                }, (error) => console.error("Clipboard Firestore error:", error));
-
-                // Fetch Media
-                const mediaRef = collection(db, 'artifacts', appId, 'public', 'data', 'media');
-                const qMedia = query(mediaRef);
-                const unsubMedia = onSnapshot(qMedia, (snapshot) => {
-                    const mData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    const sortedMedia = mData.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-                    setMediaItems(sortedMedia);
-                }, (error) => console.error("Media Firestore error:", error));
-
-                return () => {
-                    unsubTickets();
-                    unsubClipboards();
-                    unsubMedia();
-                };
-            }, [user]);
-
-            // --- TICKET ACTIONS ---
-            const openTicketModal = (ticket = null) => {
-                if (ticket) {
-                    setEditingTicket(ticket);
-                    setFormData({
-                        title: ticket.title || '',
-                        description: ticket.description || '',
-                        appVersion: ticket.appVersion || '',
-                        fileLocate: ticket.fileLocate || ''
-                    });
-                } else {
-                    setEditingTicket(null);
-                    setFormData({ title: '', description: '', appVersion: '', fileLocate: '' });
-                }
-                setIsTicketModalOpen(true);
-            };
-
-            const handleSubmitTicket = async () => {
-                if (!formData.title.trim() || !user) return;
-                try {
-                    const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
-                    if (editingTicket) {
-                        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', editingTicket.id), {
-                            ...formData,
-                            updatedAt: serverTimestamp()
-                        });
-                    } else {
-                        await addDoc(ticketsRef, {
-                            ...formData,
-                            status: 'report',
-                            timestamp: serverTimestamp(),
-                            createdBy: user.uid
-                        });
-                    }
-                    setIsTicketModalOpen(false);
-                } catch (error) { console.error("Submit error:", error); }
-            };
-
-            const handleArchiveTicket = async (id) => {
-                if (!user) return;
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id), { status: 'archive' });
-            };
-
-            const handleRestoreTicket = async (id) => {
-                if (!user) return;
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id), { status: 'report' });
-            };
-
-            const handlePermanentDelete = async (id, type = 'ticket') => {
-                if (!user || !confirm("PERMANENTLY DELETE? THIS CANNOT BE UNDONE.")) return;
-                let collectionName = 'tickets';
-                if (type === 'clipboard') collectionName = 'clipboards';
-                if (type === 'media') collectionName = 'media';
-                
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, id));
-            };
-
-            const handleMoveTicket = async (id, currentStatus, direction) => {
-                if (!user) return;
-                const statusOrder = ['report', 'doing', 'complete'];
-                const currentIndex = statusOrder.indexOf(currentStatus);
-                let newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
-                if (newIndex < 0 || newIndex >= statusOrder.length) return;
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id), { status: statusOrder[newIndex] });
-            };
-
-            const handleQuickUpdateFileLocate = async (id, newValue) => {
-                if (!user) return;
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id), { fileLocate: newValue });
-            };
-
-            // --- CLIPBOARD ACTIONS ---
-            const openClipboardModal = (clip = null) => {
-                if (clip) {
-                    setEditingClipboard(clip);
-                    setClipboardData({ content: clip.content || '' });
-                } else {
-                    setEditingClipboard(null);
-                    setClipboardData({ content: '' });
-                }
-                setIsClipboardModalOpen(true);
-            };
-
-            const handleSubmitClipboard = async () => {
-                if (!clipboardData.content.trim() || !user) return;
-                try {
-                    const clipboardsRef = collection(db, 'artifacts', appId, 'public', 'data', 'clipboards');
-                    if (editingClipboard) {
-                        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'clipboards', editingClipboard.id), {
-                            content: clipboardData.content,
-                            updatedAt: serverTimestamp()
-                        });
-                    } else {
-                        await addDoc(clipboardsRef, {
-                            content: clipboardData.content,
-                            timestamp: serverTimestamp(),
-                            createdBy: user.uid
-                        });
-                    }
-                    setIsClipboardModalOpen(false);
-                } catch (error) { console.error("Clipboard submit error:", error); }
-            };
-
-            const copyToClipboard = async (text) => {
-                try {
-                    await navigator.clipboard.writeText(text);
-                } catch (err) {
-                    const textArea = document.createElement("textarea");
-                    textArea.value = text;
-                    document.body.appendChild(textArea);
-                    textArea.select();
-                    document.execCommand("copy");
-                    document.body.removeChild(textArea);
-                }
-            };
-
-            const pasteToClipboardInput = async () => {
-                try {
-                    const text = await navigator.clipboard.readText();
-                    setClipboardData({ ...clipboardData, content: clipboardData.content + text });
-                    if(clipboardInputRef.current) clipboardInputRef.current.focus();
-                } catch (err) {
-                    alert("Browser blocked automated paste. Please use Ctrl+V / Cmd+V in the text box.");
-                    if(clipboardInputRef.current) clipboardInputRef.current.focus();
-                }
-            };
-
-            // --- MEDIA ACTIONS ---
-            const handleFileUpload = async (e) => {
-                const file = e.target.files[0];
-                if (!file || !user) return;
-
-                setUploading(true);
-                try {
-                    // Create a unique filename
-                    const fileName = `${Date.now()}_${file.name}`;
-                    const storageRef = ref(storage, `artifacts/${appId}/public/${fileName}`);
-                    
-                    // Upload raw file
-                    await uploadBytes(storageRef, file);
-                    
-                    // Get URL
-                    const downloadURL = await getDownloadURL(storageRef);
-                    
-                    // Save to Firestore
-                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'media'), {
-                        url: downloadURL,
-                        name: file.name,
-                        type: file.type, // 'image/png', 'video/mp4' etc.
-                        size: file.size,
-                        timestamp: serverTimestamp(),
-                        createdBy: user.uid,
-                        storagePath: `artifacts/${appId}/public/${fileName}`
-                    });
-                    
-                } catch (error) {
-                    console.error("Upload failed", error);
-                    alert("Upload failed. Check console for details (often CORS or Permissions).");
-                } finally {
-                    setUploading(false);
-                }
-            };
-
-            // --- RENDER ---
-            if (loading) {
-                return (
-                    <div className="min-h-screen flex items-center justify-center p-4 bg-yellow-300">
-                        <BrutalCard className="flex items-center gap-4 bg-white">
-                            <div className="animate-spin h-8 w-8 border-4 border-black border-t-transparent rounded-full"></div>
-                            <h2 className="text-2xl font-black uppercase">Loading Database...</h2>
-                        </BrutalCard>
-                    </div>
-                );
+        const openTicketModal = (ticket = null) => {
+            if (ticket) {
+                setEditingTicket(ticket);
+                setFormData({
+                    title: ticket.title || '', description: ticket.description || '',
+                    appVersion: ticket.appVersion || '', fileLocate: ticket.fileLocate || ''
+                });
+            } else {
+                setEditingTicket(null);
+                setFormData({ title: '', description: '', appVersion: '', fileLocate: '' });
             }
+            setIsTicketModalOpen(true);
+        };
 
-            const activeTickets = tickets.filter(t => t.status !== 'archive');
-            const archivedTickets = tickets.filter(t => t.status === 'archive');
+        const handleSubmitTicket = async () => {
+            if (!formData.title.trim() || !user) return;
+            const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
+            if (editingTicket) {
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', editingTicket.id), { ...formData, updatedAt: serverTimestamp() });
+            } else {
+                await addDoc(ticketsRef, { ...formData, status: 'report', timestamp: serverTimestamp(), createdBy: user.uid });
+            }
+            setIsTicketModalOpen(false);
+        };
 
+        const handleArchiveTicket = async (id) => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id), { status: 'archive' });
+        const handleRestoreTicket = async (id) => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id), { status: 'report' });
+        
+        const handlePermanentDelete = async (id, type = 'ticket') => {
+            if (!user || !confirm("PERMANENTLY DELETE? THIS CANNOT BE UNDONE.")) return;
+            const coll = type === 'clipboard' ? 'clipboards' : type === 'media' ? 'media' : 'tickets';
+            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', coll, id));
+        };
+
+        const handleMoveTicket = async (id, currentStatus, direction) => {
+            const statusOrder = ['report', 'doing', 'complete'];
+            const currentIndex = statusOrder.indexOf(currentStatus);
+            let newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
+            if (newIndex < 0 || newIndex >= statusOrder.length) return;
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id), { status: statusOrder[newIndex] });
+        };
+
+        const handleQuickUpdateFileLocate = async (id, newValue) => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', id), { fileLocate: newValue });
+
+        const openClipboardModal = (clip = null) => {
+            if (clip) { setEditingClipboard(clip); setClipboardData({ content: clip.content || '' }); }
+            else { setEditingClipboard(null); setClipboardData({ content: '' }); }
+            setIsClipboardModalOpen(true);
+        };
+
+        const handleSubmitClipboard = async () => {
+            if (!clipboardData.content.trim() || !user) return;
+            const clipboardsRef = collection(db, 'artifacts', appId, 'public', 'data', 'clipboards');
+            if (editingClipboard) {
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'clipboards', editingClipboard.id), { content: clipboardData.content, updatedAt: serverTimestamp() });
+            } else {
+                await addDoc(clipboardsRef, { content: clipboardData.content, timestamp: serverTimestamp(), createdBy: user.uid });
+            }
+            setIsClipboardModalOpen(false);
+        };
+
+        const copyToClipboard = async (text) => {
+            try { await navigator.clipboard.writeText(text); }
+            catch (err) {
+                const textArea = document.createElement("textarea");
+                textArea.value = text; document.body.appendChild(textArea);
+                textArea.select(); document.execCommand("copy"); document.body.removeChild(textArea);
+            }
+        };
+
+        const pasteToClipboardInput = async () => {
+            try {
+                const text = await navigator.clipboard.readText();
+                setClipboardData({ ...clipboardData, content: clipboardData.content + text });
+                if(clipboardInputRef.current) clipboardInputRef.current.focus();
+            } catch (err) {
+                alert("Browser blocked automated paste. Please use Ctrl+V / Cmd+V in the text box.");
+                if(clipboardInputRef.current) clipboardInputRef.current.focus();
+            }
+        };
+
+        const handleFileUpload = async (e) => {
+            const file = e.target.files[0];
+            if (!file || !user) return;
+            setUploading(true);
+            try {
+                const fileName = `${Date.now()}_${file.name}`;
+                const storageRef = ref(storage, `artifacts/${appId}/public/${fileName}`);
+                await uploadBytes(storageRef, file);
+                const downloadURL = await getDownloadURL(storageRef);
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'media'), {
+                    url: downloadURL, name: file.name, type: file.type, size: file.size,
+                    timestamp: serverTimestamp(), createdBy: user.uid, storagePath: `artifacts/${appId}/public/${fileName}`
+                });
+            } catch (error) { alert("Upload failed."); } 
+            finally { setUploading(false); }
+        };
+
+        if (loading) {
             return (
-                <div className="min-h-screen p-2 md:p-8 overflow-x-hidden flex flex-col relative pb-24">
-                    
-                    {/* Header */}
-                    <div className="max-w-7xl mx-auto w-full mb-8 flex flex-col md:flex-row justify-between items-center gap-6">
-                        <div className="bg-black text-white p-4 border-4 border-black shadow-[8px_8px_0px_0px_#FF00FF] transform -rotate-1 hover:rotate-0 transition-transform cursor-default">
-                            <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter">
-                                {viewMode === 'board' ? 'TICKET_MSTR' : viewMode === 'archive' ? 'ARCHIVE_VAULT' : viewMode === 'clipboard' ? 'CLIPBOARD_DB' : 'MEDIA_GALLERY'}
-                            </h1>
-                        </div>
-                        
-                        <div className="flex flex-wrap gap-4 w-full md:w-auto justify-center">
-                            {/* Navigation Buttons */}
-                            <BrutalButton 
-                                onClick={() => setViewMode(viewMode === 'board' ? 'archive' : 'board')} 
-                                color={viewMode === 'archive' ? 'bg-yellow-400' : 'bg-gray-200'}
-                                icon={viewMode === 'board' ? IconArchive : IconLeft}
-                                title={viewMode === 'board' ? "Go to Archive" : "Back to Board"}
-                            >
-                                {viewMode === 'board' ? 'Archive' : 'Board'}
-                            </BrutalButton>
-
-                            <BrutalButton
-                                onClick={() => setViewMode(viewMode === 'media' ? 'board' : 'media')}
-                                color={viewMode === 'media' ? 'bg-cyan-400' : 'bg-gray-200'}
-                                icon={IconImage}
-                                title="Go to Media Gallery"
-                            >
-                                Media
-                            </BrutalButton>
-
-                            <BrutalButton
-                                onClick={() => setViewMode(viewMode === 'clipboard' ? 'board' : 'clipboard')}
-                                color={viewMode === 'clipboard' ? 'bg-pink-400' : 'bg-gray-200'}
-                                icon={IconClipboard}
-                                title="Go to Clipboard"
-                            >
-                                Clip
-                            </BrutalButton>
-                            
-                            {viewMode === 'board' && (
-                                <BrutalButton 
-                                    onClick={() => openTicketModal()} 
-                                    color="bg-cyan-400" 
-                                    icon={IconPlus} 
-                                    className="flex-grow md:flex-grow-0"
-                                >
-                                    New Ticket
-                                </BrutalButton>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* --- MAIN BOARD VIEW --- */}
-                    {viewMode === 'board' && (
-                        <div className="max-w-7xl mx-auto w-full grid grid-cols-1 md:grid-cols-3 gap-8">
-                            {Object.entries(stages).map(([status, stage]) => {
-                                const stageTickets = activeTickets.filter(t => t.status === status);
-                                const Icon = stage.icon;
-                                
-                                return (
-                                    <div key={status} className="flex flex-col gap-4">
-                                        <div className={`${stage.color} border-4 border-black p-4 brutal-shadow-lg flex items-center justify-between sticky top-2 z-10`}>
-                                            <h2 className={`text-xl md:text-2xl font-black uppercase flex items-center gap-3 ${stage.textColor}`}>
-                                                <Icon /> {stage.label}
-                                            </h2>
-                                            <span className="bg-black text-white px-3 py-1 font-bold border-2 border-white">{stageTickets.length}</span>
-                                        </div>
-
-                                        <div className="flex flex-col gap-6 pb-12">
-                                            {stageTickets.length === 0 && (
-                                                <div className="border-4 border-dashed border-gray-400 p-8 text-center text-gray-400 font-bold uppercase select-none">Empty Stage</div>
-                                            )}
-                                            {stageTickets.map(ticket => (
-                                                <BrutalCard key={ticket.id} className="relative group transition-all duration-200">
-                                                    <div className="flex justify-between items-start mb-3 gap-2">
-                                                        <span className="text-[10px] font-bold bg-black text-white px-2 py-1 select-all">#{ticket.id.slice(-6).toUpperCase()}</span>
-                                                        <div className="flex gap-1">
-                                                            <button onClick={() => openTicketModal(ticket)} className="text-black hover:text-blue-600 border-2 border-transparent hover:border-black p-1 transition-all" title="Edit">
-                                                                <IconPencil />
-                                                            </button>
-                                                            <button onClick={() => handleArchiveTicket(ticket.id)} className="text-black hover:text-red-600 border-2 border-transparent hover:border-black p-1 transition-all" title="Archive">
-                                                                <IconTrash />
-                                                            </button>
-                                                        </div>
-                                                    </div>
-
-                                                    <h3 className="text-lg font-black leading-tight mb-2 uppercase break-words">{ticket.title}</h3>
-                                                    
-                                                    {ticket.appVersion && (
-                                                        <div className="inline-flex items-center gap-1 bg-gray-200 border-2 border-black px-2 py-1 text-xs font-bold mb-3">
-                                                            <IconCode /> {ticket.appVersion}
-                                                        </div>
-                                                    )}
-
-                                                    {(status === 'doing') && (
-                                                        <div className="mb-3 bg-yellow-50 p-2 border-2 border-black">
-                                                            <label className="flex items-center gap-1 text-[10px] font-bold uppercase mb-1">
-                                                                <IconFile /> File Locate
-                                                            </label>
-                                                            <input 
-                                                                type="text" 
-                                                                className="w-full bg-white border-2 border-black p-1 text-xs font-mono"
-                                                                defaultValue={ticket.fileLocate}
-                                                                placeholder="path/to/file.js"
-                                                                onBlur={(e) => handleQuickUpdateFileLocate(ticket.id, e.target.value)}
-                                                            />
-                                                        </div>
-                                                    )}
-                                                    {(status !== 'doing' && ticket.fileLocate) && (
-                                                        <div className="mb-3 text-xs font-mono bg-gray-100 p-2 border-l-4 border-black break-all">
-                                                            <span className="font-bold">FILE:</span> {ticket.fileLocate}
-                                                        </div>
-                                                    )}
-
-                                                    <p className="text-sm font-bold text-gray-600 mb-6 whitespace-pre-wrap break-words">{ticket.description}</p>
-                                                    
-                                                    <div className="flex justify-between items-center border-t-4 border-black pt-4 -mx-4 px-4 bg-gray-50 -mb-4 pb-4 mt-auto">
-                                                        {status !== 'report' ? (
-                                                            <button onClick={() => handleMoveTicket(ticket.id, ticket.status, 'prev')} className="bg-white hover:bg-gray-100 border-2 border-black p-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] brutal-btn-active">
-                                                                <IconLeft />
-                                                            </button>
-                                                        ) : <div />}
-                                                        
-                                                        {status === 'complete' ? (
-                                                            <button onClick={() => handleArchiveTicket(ticket.id)} className="bg-gray-200 hover:bg-gray-300 text-xs font-bold border-2 border-black px-2 py-2 flex items-center gap-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] brutal-btn-active">
-                                                                ARCHIVE <IconArchive />
-                                                            </button>
-                                                        ) : (
-                                                            <button onClick={() => handleMoveTicket(ticket.id, ticket.status, 'next')} className="bg-black hover:bg-gray-800 text-white border-2 border-black p-2 shadow-[2px_2px_0px_0px_#888] brutal-btn-active">
-                                                                <IconRight />
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </BrutalCard>
-                                            ))}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-
-                    {/* --- ARCHIVE VIEW --- */}
-                    {viewMode === 'archive' && (
-                        <div className="max-w-4xl mx-auto w-full">
-                            <BrutalCard className="mb-8 bg-gray-200">
-                                <h2 className="text-2xl font-black uppercase mb-2">Archive Vault</h2>
-                                <p className="font-mono text-sm">Items here are soft-deleted. Restore them to the board or burn them forever.</p>
-                            </BrutalCard>
-                            <div className="grid grid-cols-1 gap-4">
-                                {archivedTickets.length === 0 && (
-                                     <div className="border-4 border-dashed border-gray-400 p-12 text-center text-gray-500 font-bold uppercase text-xl">The Vault is Empty</div>
-                                )}
-                                {archivedTickets.map(ticket => (
-                                    <div key={ticket.id} className="bg-white border-4 border-black p-4 brutal-shadow flex flex-col md:flex-row justify-between items-start md:items-center gap-4 opacity-75 hover:opacity-100 transition-opacity">
-                                        <div className="flex-grow">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="text-xs bg-black text-white px-1">#{ticket.id.slice(-6)}</span>
-                                                <span className="text-xs font-bold bg-gray-300 px-1">{ticket.appVersion || 'N/A'}</span>
-                                            </div>
-                                            <h3 className="text-xl font-black uppercase">{ticket.title}</h3>
-                                            <p className="text-sm truncate text-gray-600 max-w-md">{ticket.description}</p>
-                                        </div>
-                                        <div className="flex gap-3 w-full md:w-auto">
-                                            <BrutalButton onClick={() => handleRestoreTicket(ticket.id)} color="bg-green-400" className="flex-1 md:flex-none text-sm" icon={IconUndo}>Restore</BrutalButton>
-                                            <BrutalButton onClick={() => handlePermanentDelete(ticket.id)} color="bg-red-500" className="text-white flex-1 md:flex-none text-sm" icon={IconTrash}>Burn</BrutalButton>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* --- MEDIA VIEW --- */}
-                    {viewMode === 'media' && (
-                        <div className="max-w-6xl mx-auto w-full">
-                            <BrutalCard className="mb-8 bg-cyan-200 border-black">
-                                <div className="flex flex-col md:flex-row items-center gap-6">
-                                    <div className="bg-white p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                                        <IconImage />
-                                    </div>
-                                    <div className="flex-grow">
-                                        <h2 className="text-2xl font-black uppercase">Media Gallery</h2>
-                                        <p className="font-mono text-sm">Videos load low-bandwidth posters. Click any item to view Full Quality.</p>
-                                    </div>
-                                    
-                                    <div className="w-full md:w-auto">
-                                        <label className={`block w-full cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
-                                            <div className="bg-white border-4 border-black border-dashed p-4 flex flex-col items-center justify-center gap-2 hover:bg-cyan-50 transition-colors">
-                                                {uploading ? (
-                                                    <span className="font-black animate-pulse">UPLOADING...</span>
-                                                ) : (
-                                                    <>
-                                                        <div className="flex items-center gap-2 font-black uppercase">
-                                                            <IconUpload /> Upload Media
-                                                        </div>
-                                                        <span className="text-xs text-gray-500">Supports IMG/VID</span>
-                                                    </>
-                                                )}
-                                            </div>
-                                            <input 
-                                                type="file" 
-                                                accept="image/*,video/*" 
-                                                className="hidden" 
-                                                onChange={handleFileUpload} 
-                                                disabled={uploading}
-                                            />
-                                        </label>
-                                    </div>
-                                </div>
-                            </BrutalCard>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {mediaItems.length === 0 && (
-                                    <div className="col-span-full border-4 border-dashed border-gray-400 p-12 text-center text-gray-500 font-bold uppercase text-xl">
-                                        Gallery is empty.
-                                    </div>
-                                )}
-                                {mediaItems.map(item => (
-                                    <BrutalCard key={item.id} className="p-0 overflow-hidden flex flex-col bg-white">
-                                        {/* Media Preview Container */}
-                                        <div 
-                                            className="border-b-4 border-black relative bg-gray-100 aspect-video flex items-center justify-center group cursor-pointer overflow-hidden"
-                                            onClick={() => setLightboxItem(item)}
-                                        >
-                                            {item.type.startsWith('video') ? (
-                                                <>
-                                                    {/* Video "Thumbnail" Strategy: Load only metadata and 0.5s frame */}
-                                                    <video 
-                                                        src={`${item.url}#t=0.5`}
-                                                        preload="metadata"
-                                                        className="w-full h-full object-cover opacity-80"
-                                                    />
-                                                    {/* Custom Overlay for Click-to-Play */}
-                                                    <div className="absolute inset-0 flex items-center justify-center media-overlay">
-                                                        <div className="transform transition-transform group-hover:scale-125">
-                                                            <IconPlay />
-                                                        </div>
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <img 
-                                                        src={item.url} 
-                                                        alt={item.name} 
-                                                        className="w-full h-full object-cover"
-                                                        loading="lazy"
-                                                    />
-                                                    {/* Hover Overlay indicating clickability */}
-                                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 media-overlay transition-opacity">
-                                                        <div className="bg-white border-2 border-black p-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                                                            <IconMaximize />
-                                                        </div>
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
-                                        
-                                        <div className="p-3 flex justify-between items-start gap-2">
-                                            <div className="overflow-hidden">
-                                                <p className="font-bold text-xs truncate uppercase" title={item.name}>{item.name}</p>
-                                                <p className="text-[10px] text-gray-500 font-mono mt-1">{(item.size / 1024 / 1024).toFixed(2)} MB</p>
-                                            </div>
-                                            <button 
-                                                onClick={(e) => {
-                                                    e.stopPropagation(); // Prevent opening lightbox
-                                                    handlePermanentDelete(item.id, 'media');
-                                                }}
-                                                className="bg-red-500 text-white p-2 border-2 border-black hover:bg-red-600 transition-colors shrink-0"
-                                                title="Delete Permanently"
-                                            >
-                                                <IconTrash />
-                                            </button>
-                                        </div>
-                                    </BrutalCard>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* --- CLIPBOARD VIEW --- */}
-                    {viewMode === 'clipboard' && (
-                        <div className="max-w-6xl mx-auto w-full">
-                            <BrutalCard className="mb-8 bg-pink-200 border-black">
-                                <div className="flex items-center gap-4">
-                                    <div className="bg-white p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                                        <IconClipboard />
-                                    </div>
-                                    <div>
-                                        <h2 className="text-2xl font-black uppercase">Global Clipboard</h2>
-                                        <p className="font-mono text-sm">Store code snippets, logs, and quick notes. Shared globally.</p>
-                                    </div>
-                                </div>
-                            </BrutalCard>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {clipboards.length === 0 && (
-                                    <div className="col-span-full border-4 border-dashed border-gray-400 p-12 text-center text-gray-500 font-bold uppercase text-xl">
-                                        Clipboard is empty.<br/>Click + to add content.
-                                    </div>
-                                )}
-                                {clipboards.map(clip => (
-                                    <BrutalCard key={clip.id} className="flex flex-col h-64 relative group hover:-translate-y-1 transition-transform duration-200">
-                                        <div className="flex-grow overflow-hidden font-mono text-xs p-2 bg-gray-50 border-2 border-gray-200 mb-4 whitespace-pre-wrap break-words">
-                                            {clip.content}
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <button 
-                                                onClick={() => copyToClipboard(clip.content)}
-                                                className="flex-1 bg-black text-white py-2 font-bold uppercase text-xs flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors border-2 border-black"
-                                            >
-                                                <IconCopy /> Copy
-                                            </button>
-                                            <button 
-                                                onClick={() => openClipboardModal(clip)}
-                                                className="bg-white text-black py-2 px-3 border-2 border-black hover:bg-gray-100"
-                                                title="Edit"
-                                            >
-                                                <IconPencil />
-                                            </button>
-                                            <button 
-                                                onClick={() => handlePermanentDelete(clip.id, 'clipboard')}
-                                                className="bg-red-500 text-white py-2 px-3 border-2 border-black hover:bg-red-600"
-                                                title="Delete"
-                                            >
-                                                <IconTrash />
-                                            </button>
-                                        </div>
-                                    </BrutalCard>
-                                ))}
-                            </div>
-
-                            {/* Floating Action Button (FAB) for Clipboard */}
-                            <button 
-                                onClick={() => openClipboardModal()}
-                                className="fixed bottom-8 right-8 w-16 h-16 bg-pink-500 border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center rounded-full z-40 hover:scale-110 active:scale-95 transition-all animate-float"
-                                title="Add New Clipboard Item"
-                            >
-                                <IconPlus />
-                            </button>
-                        </div>
-                    )}
-
-                    {/* --- TICKET MODAL --- */}
-                    {isTicketModalOpen && (
-                        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-                            <div className="bg-white border-4 border-black shadow-[16px_16px_0px_0px_#FF0000] w-full max-w-lg p-6 relative max-h-[90vh] overflow-y-auto">
-                                <button onClick={() => setIsTicketModalOpen(false)} className="absolute top-4 right-4 text-black hover:rotate-90 transition-transform duration-200"><IconX /></button>
-                                
-                                <h2 className={`text-2xl md:text-3xl font-black uppercase mb-6 ${editingTicket ? 'bg-cyan-300' : 'bg-yellow-400'} inline-block border-4 border-black px-2 transform -rotate-1`}>
-                                    {editingTicket ? 'Edit Issue' : 'New Issue'}
-                                </h2>
-                                
-                                <div className="flex flex-col gap-4">
-                                    <BrutalInput 
-                                        label="Subject"
-                                        placeholder="WHAT'S BROKEN?" 
-                                        value={formData.title} 
-                                        onChange={(e) => setFormData({...formData, title: e.target.value})} 
-                                        autoFocus={!editingTicket}
-                                    />
-                                    
-                                    <BrutalInput 
-                                        label="App / Version / Branch"
-                                        placeholder="v2.0.1 / main / production" 
-                                        value={formData.appVersion} 
-                                        onChange={(e) => setFormData({...formData, appVersion: e.target.value})} 
-                                        className="bg-gray-50"
-                                    />
-
-                                    <BrutalInput 
-                                        label="File Locate (Optional)"
-                                        placeholder="src/components/App.js" 
-                                        value={formData.fileLocate} 
-                                        onChange={(e) => setFormData({...formData, fileLocate: e.target.value})} 
-                                        className="bg-gray-50"
-                                    />
-                                    
-                                    <BrutalTextArea 
-                                        label="Details"
-                                        placeholder="GIVE ME THE DEETS..." 
-                                        value={formData.description} 
-                                        onChange={(e) => setFormData({...formData, description: e.target.value})} 
-                                    />
-                                    
-                                    <BrutalButton onClick={handleSubmitTicket} color="bg-black" className="w-full text-white mt-4 py-4 text-xl">
-                                        {editingTicket ? 'SAVE CHANGES' : 'SUBMIT REPORT'}
-                                    </BrutalButton>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* --- CLIPBOARD MODAL --- */}
-                    {isClipboardModalOpen && (
-                        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-                            <div className="bg-white border-4 border-black shadow-[16px_16px_0px_0px_#FF00FF] w-full max-w-2xl p-6 relative max-h-[90vh] overflow-y-auto flex flex-col">
-                                <button onClick={() => setIsClipboardModalOpen(false)} className="absolute top-4 right-4 text-black hover:rotate-90 transition-transform duration-200"><IconX /></button>
-                                
-                                <h2 className="text-2xl md:text-3xl font-black uppercase mb-4 bg-pink-400 inline-block border-4 border-black px-2 transform -rotate-1 self-start">
-                                    {editingClipboard ? 'Edit Snippet' : 'New Snippet'}
-                                </h2>
-                                
-                                <div className="flex flex-col gap-4 flex-grow">
-                                    <div className="relative">
-                                        <BrutalTextArea 
-                                            inputRef={clipboardInputRef}
-                                            label="Content (Code, Text, Logs)"
-                                            placeholder="Paste your content here..." 
-                                            value={clipboardData.content} 
-                                            onChange={(e) => setClipboardData({...clipboardData, content: e.target.value})} 
-                                            rows={10}
-                                            className="font-mono text-xs"
-                                        />
-                                        {/* Utility Buttons attached to TextArea */}
-                                        <div className="flex gap-2 mt-2">
-                                            <button 
-                                                onClick={() => copyToClipboard(clipboardData.content)}
-                                                className="bg-gray-200 border-2 border-black px-3 py-1 font-bold text-xs uppercase hover:bg-gray-300 flex items-center gap-1"
-                                            >
-                                                <IconCopy /> Copy All
-                                            </button>
-                                            <button 
-                                                onClick={pasteToClipboardInput}
-                                                className="bg-gray-200 border-2 border-black px-3 py-1 font-bold text-xs uppercase hover:bg-gray-300 flex items-center gap-1"
-                                            >
-                                                <IconPaste /> Paste
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex justify-end gap-4 mt-4">
-                                        <BrutalButton onClick={() => setIsClipboardModalOpen(false)} color="bg-white" className="flex-1 md:flex-none">
-                                            Cancel
-                                        </BrutalButton>
-                                        <BrutalButton onClick={handleSubmitClipboard} color="bg-black" className="flex-1 md:flex-none text-white w-full md:w-auto">
-                                            {editingClipboard ? 'Save Changes' : 'Save Snippet'}
-                                        </BrutalButton>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* --- LIGHTBOX MODAL --- */}
-                    {lightboxItem && (
-                        <Lightbox item={lightboxItem} onClose={() => setLightboxItem(null)} />
-                    )}
-
-                    <div className="fixed bottom-4 left-4 hidden lg:block opacity-30 pointer-events-none z-0">
-                        <div className="text-8xl font-black text-gray-400 transform -rotate-6">LIVE_DB</div>
-                    </div>
+                <div className="min-h-screen flex items-center justify-center p-4 bg-yellow-300">
+                    <BrutalCard className="flex items-center gap-4 bg-white">
+                        <div className="animate-spin h-8 w-8 border-4 border-black border-t-transparent rounded-full"></div>
+                        <h2 className="text-2xl font-black uppercase">Loading Database...</h2>
+                    </BrutalCard>
                 </div>
             );
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
+        const activeTickets = tickets.filter(t => t.status !== 'archive');
+        const archivedTickets = tickets.filter(t => t.status === 'archive');
+
+        return (
+            <div className="min-h-screen p-2 md:p-8 overflow-x-hidden flex flex-col relative pb-24">
+                <div className="max-w-7xl mx-auto w-full mb-8 flex flex-col md:flex-row justify-between items-center gap-6">
+                    <div className="bg-black text-white p-4 border-4 border-black shadow-[8px_8px_0px_0px_#FF00FF] transform -rotate-1 hover:rotate-0 transition-transform cursor-default">
+                        <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter">
+                            {viewMode === 'board' ? 'TICKET_MSTR' : viewMode === 'archive' ? 'ARCHIVE_VAULT' : viewMode === 'clipboard' ? 'CLIPBOARD_DB' : 'MEDIA_GALLERY'}
+                        </h1>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-4 w-full md:w-auto justify-center">
+                        {/* New Button to switch to BILLGET App */}
+                        <BrutalButton 
+                            onClick={() => window.switchApp('billget')} 
+                            color="bg-orange-400" 
+                            icon={() => <i className="fas fa-file-invoice" />}
+                            className="flex-grow md:flex-grow-0"
+                            title="Go to BILLGET app"
+                        >
+                            BILLGET APP
+                        </BrutalButton>
+
+                        <BrutalButton 
+                            onClick={() => setViewMode(viewMode === 'board' ? 'archive' : 'board')} 
+                            color={viewMode === 'archive' ? 'bg-yellow-400' : 'bg-gray-200'}
+                            icon={viewMode === 'board' ? IconArchive : IconLeft}
+                        >
+                            {viewMode === 'board' ? 'Archive' : 'Board'}
+                        </BrutalButton>
+
+                        <BrutalButton
+                            onClick={() => setViewMode(viewMode === 'media' ? 'board' : 'media')}
+                            color={viewMode === 'media' ? 'bg-cyan-400' : 'bg-gray-200'}
+                            icon={IconImage}
+                        >
+                            Media
+                        </BrutalButton>
+
+                        <BrutalButton
+                            onClick={() => setViewMode(viewMode === 'clipboard' ? 'board' : 'clipboard')}
+                            color={viewMode === 'clipboard' ? 'bg-pink-400' : 'bg-gray-200'}
+                            icon={IconClipboard}
+                        >
+                            Clip
+                        </BrutalButton>
+                        
+                        {viewMode === 'board' && (
+                            <BrutalButton onClick={() => openTicketModal()} color="bg-cyan-400" icon={IconPlus} className="flex-grow md:flex-grow-0">
+                                New Ticket
+                            </BrutalButton>
+                        )}
+                    </div>
+                </div>
+
+                {viewMode === 'board' && (
+                    <div className="max-w-7xl mx-auto w-full grid grid-cols-1 md:grid-cols-3 gap-8">
+                        {Object.entries(stages).map(([status, stage]) => {
+                            const stageTickets = activeTickets.filter(t => t.status === status);
+                            const Icon = stage.icon;
+                            return (
+                                <div key={status} className="flex flex-col gap-4">
+                                    <div className={`${stage.color} border-4 border-black p-4 brutal-shadow-lg flex items-center justify-between sticky top-2 z-10`}>
+                                        <h2 className={`text-xl md:text-2xl font-black uppercase flex items-center gap-3 ${stage.textColor}`}><Icon /> {stage.label}</h2>
+                                        <span className="bg-black text-white px-3 py-1 font-bold border-2 border-white">{stageTickets.length}</span>
+                                    </div>
+                                    <div className="flex flex-col gap-6 pb-12">
+                                        {stageTickets.length === 0 && <div className="border-4 border-dashed border-gray-400 p-8 text-center text-gray-400 font-bold uppercase select-none">Empty Stage</div>}
+                                        {stageTickets.map(ticket => (
+                                            <BrutalCard key={ticket.id} className="relative group transition-all duration-200">
+                                                <div className="flex justify-between items-start mb-3 gap-2">
+                                                    <span className="text-[10px] font-bold bg-black text-white px-2 py-1">#{ticket.id.slice(-6).toUpperCase()}</span>
+                                                    <div className="flex gap-1">
+                                                        <button onClick={() => openTicketModal(ticket)} className="text-black hover:text-blue-600 border-2 border-transparent hover:border-black p-1 transition-all"><IconPencil /></button>
+                                                        <button onClick={() => handleArchiveTicket(ticket.id)} className="text-black hover:text-red-600 border-2 border-transparent hover:border-black p-1 transition-all"><IconTrash /></button>
+                                                    </div>
+                                                </div>
+                                                <h3 className="text-lg font-black leading-tight mb-2 uppercase break-words">{ticket.title}</h3>
+                                                {ticket.appVersion && <div className="inline-flex items-center gap-1 bg-gray-200 border-2 border-black px-2 py-1 text-xs font-bold mb-3"><IconCode /> {ticket.appVersion}</div>}
+                                                {(status === 'doing') && (
+                                                    <div className="mb-3 bg-yellow-50 p-2 border-2 border-black">
+                                                        <label className="flex items-center gap-1 text-[10px] font-bold uppercase mb-1"><IconFile /> File Locate</label>
+                                                        <input type="text" className="w-full bg-white border-2 border-black p-1 text-xs font-mono" defaultValue={ticket.fileLocate} onBlur={(e) => handleQuickUpdateFileLocate(ticket.id, e.target.value)} />
+                                                    </div>
+                                                )}
+                                                {(status !== 'doing' && ticket.fileLocate) && <div className="mb-3 text-xs font-mono bg-gray-100 p-2 border-l-4 border-black break-all"><span className="font-bold">FILE:</span> {ticket.fileLocate}</div>}
+                                                <p className="text-sm font-bold text-gray-600 mb-6 whitespace-pre-wrap break-words">{ticket.description}</p>
+                                                <div className="flex justify-between items-center border-t-4 border-black pt-4 -mx-4 px-4 bg-gray-50 -mb-4 pb-4 mt-auto">
+                                                    {status !== 'report' ? <button onClick={() => handleMoveTicket(ticket.id, ticket.status, 'prev')} className="bg-white hover:bg-gray-100 border-2 border-black p-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] brutal-btn-active"><IconLeft /></button> : <div />}
+                                                    {status === 'complete' ? <button onClick={() => handleArchiveTicket(ticket.id)} className="bg-gray-200 hover:bg-gray-300 text-xs font-bold border-2 border-black px-2 py-2 flex items-center gap-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] brutal-btn-active">ARCHIVE <IconArchive /></button> : <button onClick={() => handleMoveTicket(ticket.id, ticket.status, 'next')} className="bg-black hover:bg-gray-800 text-white border-2 border-black p-2 shadow-[2px_2px_0px_0px_#888] brutal-btn-active"><IconRight /></button>}
+                                                </div>
+                                            </BrutalCard>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {viewMode === 'archive' && (
+                    <div className="max-w-4xl mx-auto w-full">
+                        <BrutalCard className="mb-8 bg-gray-200">
+                            <h2 className="text-2xl font-black uppercase mb-2">Archive Vault</h2>
+                            <p className="font-mono text-sm">Items here are soft-deleted. Restore them to the board or burn them forever.</p>
+                        </BrutalCard>
+                        <div className="grid grid-cols-1 gap-4">
+                            {archivedTickets.length === 0 && <div className="border-4 border-dashed border-gray-400 p-12 text-center text-gray-500 font-bold uppercase text-xl">The Vault is Empty</div>}
+                            {archivedTickets.map(ticket => (
+                                <div key={ticket.id} className="bg-white border-4 border-black p-4 brutal-shadow flex flex-col md:flex-row justify-between items-start md:items-center gap-4 opacity-75 hover:opacity-100 transition-opacity">
+                                    <div className="flex-grow">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-xs bg-black text-white px-1">#{ticket.id.slice(-6)}</span>
+                                            <span className="text-xs font-bold bg-gray-300 px-1">{ticket.appVersion || 'N/A'}</span>
+                                        </div>
+                                        <h3 className="text-xl font-black uppercase">{ticket.title}</h3>
+                                        <p className="text-sm truncate text-gray-600 max-w-md">{ticket.description}</p>
+                                    </div>
+                                    <div className="flex gap-3 w-full md:w-auto">
+                                        <BrutalButton onClick={() => handleRestoreTicket(ticket.id)} color="bg-green-400" className="flex-1 md:flex-none text-sm" icon={IconUndo}>Restore</BrutalButton>
+                                        <BrutalButton onClick={() => handlePermanentDelete(ticket.id)} color="bg-red-500" className="text-white flex-1 md:flex-none text-sm" icon={IconTrash}>Burn</BrutalButton>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {viewMode === 'media' && (
+                    <div className="max-w-6xl mx-auto w-full">
+                        <BrutalCard className="mb-8 bg-cyan-200 border-black">
+                            <div className="flex flex-col md:flex-row items-center gap-6">
+                                <div className="bg-white p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"><IconImage /></div>
+                                <div className="flex-grow">
+                                    <h2 className="text-2xl font-black uppercase">Media Gallery</h2>
+                                    <p className="font-mono text-sm">Videos load low-bandwidth posters. Click any item to view Full Quality.</p>
+                                </div>
+                                <div className="w-full md:w-auto">
+                                    <label className={`block w-full cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                                        <div className="bg-white border-4 border-black border-dashed p-4 flex flex-col items-center justify-center gap-2 hover:bg-cyan-50 transition-colors">
+                                            {uploading ? <span className="font-black animate-pulse">UPLOADING...</span> : <><div className="flex items-center gap-2 font-black uppercase"><IconUpload /> Upload Media</div><span className="text-xs text-gray-500">Supports IMG/VID</span></>}
+                                        </div>
+                                        <input type="file" accept="image/*,video/*" className="hidden" onChange={handleFileUpload} disabled={uploading}/>
+                                    </label>
+                                </div>
+                            </div>
+                        </BrutalCard>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {mediaItems.length === 0 && <div className="col-span-full border-4 border-dashed border-gray-400 p-12 text-center text-gray-500 font-bold uppercase text-xl">Gallery is empty.</div>}
+                            {mediaItems.map(item => (
+                                <BrutalCard key={item.id} className="p-0 overflow-hidden flex flex-col bg-white">
+                                    <div className="border-b-4 border-black relative bg-gray-100 aspect-video flex items-center justify-center group cursor-pointer overflow-hidden" onClick={() => setLightboxItem(item)}>
+                                        {item.type.startsWith('video') ? (
+                                            <><video src={`${item.url}#t=0.5`} preload="metadata" className="w-full h-full object-cover opacity-80"/><div className="absolute inset-0 flex items-center justify-center media-overlay"><div className="transform transition-transform group-hover:scale-125"><IconPlay /></div></div></>
+                                        ) : (
+                                            <><img src={item.url} alt={item.name} className="w-full h-full object-cover" loading="lazy"/><div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 media-overlay transition-opacity"><div className="bg-white border-2 border-black p-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"><IconMaximize /></div></div></>
+                                        )}
+                                    </div>
+                                    <div className="p-3 flex justify-between items-start gap-2">
+                                        <div className="overflow-hidden">
+                                            <p className="font-bold text-xs truncate uppercase" title={item.name}>{item.name}</p>
+                                            <p className="text-[10px] text-gray-500 font-mono mt-1">{(item.size / 1024 / 1024).toFixed(2)} MB</p>
+                                        </div>
+                                        <button onClick={(e) => { e.stopPropagation(); handlePermanentDelete(item.id, 'media'); }} className="bg-red-500 text-white p-2 border-2 border-black hover:bg-red-600 transition-colors shrink-0" title="Delete Permanently"><IconTrash /></button>
+                                    </div>
+                                </BrutalCard>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {viewMode === 'clipboard' && (
+                    <div className="max-w-6xl mx-auto w-full">
+                        <BrutalCard className="mb-8 bg-pink-200 border-black">
+                            <div className="flex items-center gap-4">
+                                <div className="bg-white p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"><IconClipboard /></div>
+                                <div><h2 className="text-2xl font-black uppercase">Global Clipboard</h2><p className="font-mono text-sm">Store code snippets, logs, and quick notes. Shared globally.</p></div>
+                            </div>
+                        </BrutalCard>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {clipboards.length === 0 && <div className="col-span-full border-4 border-dashed border-gray-400 p-12 text-center text-gray-500 font-bold uppercase text-xl">Clipboard is empty.<br/>Click + to add content.</div>}
+                            {clipboards.map(clip => (
+                                <BrutalCard key={clip.id} className="flex flex-col h-64 relative group hover:-translate-y-1 transition-transform duration-200">
+                                    <div className="flex-grow overflow-hidden font-mono text-xs p-2 bg-gray-50 border-2 border-gray-200 mb-4 whitespace-pre-wrap break-words">{clip.content}</div>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => copyToClipboard(clip.content)} className="flex-1 bg-black text-white py-2 font-bold uppercase text-xs flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors border-2 border-black"><IconCopy /> Copy</button>
+                                        <button onClick={() => openClipboardModal(clip)} className="bg-white text-black py-2 px-3 border-2 border-black hover:bg-gray-100" title="Edit"><IconPencil /></button>
+                                        <button onClick={() => handlePermanentDelete(clip.id, 'clipboard')} className="bg-red-500 text-white py-2 px-3 border-2 border-black hover:bg-red-600" title="Delete"><IconTrash /></button>
+                                    </div>
+                                </BrutalCard>
+                            ))}
+                        </div>
+                        <button onClick={() => openClipboardModal()} className="fixed bottom-8 right-8 w-16 h-16 bg-pink-500 border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center rounded-full z-40 hover:scale-110 active:scale-95 transition-all animate-float"><IconPlus /></button>
+                    </div>
+                )}
+
+                {isTicketModalOpen && (
+                    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+                        <div className="bg-white border-4 border-black shadow-[16px_16px_0px_0px_#FF0000] w-full max-w-lg p-6 relative max-h-[90vh] overflow-y-auto">
+                            <button onClick={() => setIsTicketModalOpen(false)} className="absolute top-4 right-4 text-black hover:rotate-90 transition-transform duration-200"><IconX /></button>
+                            <h2 className={`text-2xl md:text-3xl font-black uppercase mb-6 ${editingTicket ? 'bg-cyan-300' : 'bg-yellow-400'} inline-block border-4 border-black px-2 transform -rotate-1`}>{editingTicket ? 'Edit Issue' : 'New Issue'}</h2>
+                            <div className="flex flex-col gap-4">
+                                <BrutalInput label="Subject" placeholder="WHAT'S BROKEN?" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} autoFocus={!editingTicket}/>
+                                <BrutalInput label="App / Version / Branch" placeholder="v2.0.1 / main / production" value={formData.appVersion} onChange={(e) => setFormData({...formData, appVersion: e.target.value})} className="bg-gray-50"/>
+                                <BrutalInput label="File Locate (Optional)" placeholder="src/components/App.js" value={formData.fileLocate} onChange={(e) => setFormData({...formData, fileLocate: e.target.value})} className="bg-gray-50"/>
+                                <BrutalTextArea label="Details" placeholder="GIVE ME THE DEETS..." value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
+                                <BrutalButton onClick={handleSubmitTicket} color="bg-black" className="w-full text-white mt-4 py-4 text-xl">{editingTicket ? 'SAVE CHANGES' : 'SUBMIT REPORT'}</BrutalButton>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {isClipboardModalOpen && (
+                    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+                        <div className="bg-white border-4 border-black shadow-[16px_16px_0px_0px_#FF00FF] w-full max-w-2xl p-6 relative max-h-[90vh] overflow-y-auto flex flex-col">
+                            <button onClick={() => setIsClipboardModalOpen(false)} className="absolute top-4 right-4 text-black hover:rotate-90 transition-transform duration-200"><IconX /></button>
+                            <h2 className="text-2xl md:text-3xl font-black uppercase mb-4 bg-pink-400 inline-block border-4 border-black px-2 transform -rotate-1 self-start">{editingClipboard ? 'Edit Snippet' : 'New Snippet'}</h2>
+                            <div className="flex flex-col gap-4 flex-grow">
+                                <div className="relative">
+                                    <BrutalTextArea inputRef={clipboardInputRef} label="Content (Code, Text, Logs)" placeholder="Paste your content here..." value={clipboardData.content} onChange={(e) => setClipboardData({...clipboardData, content: e.target.value})} rows={10} className="font-mono text-xs"/>
+                                    <div className="flex gap-2 mt-2">
+                                        <button onClick={() => copyToClipboard(clipboardData.content)} className="bg-gray-200 border-2 border-black px-3 py-1 font-bold text-xs uppercase hover:bg-gray-300 flex items-center gap-1"><IconCopy /> Copy All</button>
+                                        <button onClick={pasteToClipboardInput} className="bg-gray-200 border-2 border-black px-3 py-1 font-bold text-xs uppercase hover:bg-gray-300 flex items-center gap-1"><IconPaste /> Paste</button>
+                                    </div>
+                                </div>
+                                <div className="flex justify-end gap-4 mt-4">
+                                    <BrutalButton onClick={() => setIsClipboardModalOpen(false)} color="bg-white" className="flex-1 md:flex-none">Cancel</BrutalButton>
+                                    <BrutalButton onClick={handleSubmitClipboard} color="bg-black" className="flex-1 md:flex-none text-white w-full md:w-auto">{editingClipboard ? 'Save Changes' : 'Save Snippet'}</BrutalButton>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                <div className="fixed bottom-4 left-4 hidden lg:block opacity-30 pointer-events-none z-0">
+                    <div className="text-8xl font-black text-gray-400 transform -rotate-6">LIVE_DB</div>
+                </div>
+            </div>
+        );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+</script>
+
+<!-- ========================================== -->
+<!-- JS LOGIC: BILLGET                          -->
+<!-- ========================================== -->
+<script type="module">
+    import { initializeApp }     from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, collection, onSnapshot, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey:            "AIzaSyBO5lPMU0LBdNOlnj-SsiiK2gWVDvegfeo",
+        authDomain:        "billget-b4c17.firebaseapp.com",
+        projectId:         "billget-b4c17",
+        storageBucket:     "billget-b4c17.firebasestorage.app",
+        messagingSenderId: "872727285554",
+        appId:             "1:872727285554:web:d3ee2323d477e18fb7112b",
+    };
+
+    // Note: Use a specific app name to avoid conflicting with TICKET_MSTR
+    const app  = initializeApp(firebaseConfig, "BillGetApp");
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+
+    const ROOM_ID = "shared-global";
+
+    let cards              = [];
+    let bills              = {};
+    let uid                = null;
+    let currentTab         = 'dashboard';
+    let dashFilter         = 'unpaid';
+    let expandedMonths     = new Set();
+    let editingCardId      = null;
+    let selectedMonth      = new Date().getMonth() + 1;
+
+    const MONTHS = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+    const YEARS  = [2024, 2025, 2026, 2027];
+
+    let payCtx = { key: null, cardName: null, billMax: 0, dueDay: 1, monthName: '' };
+    let payType = 'full';  
+    let payTiming = 'ontime'; 
+
+    function toast(msg, dur = 2200) {
+        const el = document.getElementById('toast');
+        el.innerText = msg; el.classList.add('show');
+        setTimeout(() => el.classList.remove('show'), dur);
+    }
+
+    async function setupPresence(userId) {
+        const presRef = doc(db, 'rooms', ROOM_ID, 'presence', userId);
+        await setDoc(presRef, { at: serverTimestamp() });
+
+        onSnapshot(collection(db, 'rooms', ROOM_ID, 'presence'), snap => {
+            const n = snap.size;
+            document.getElementById('online-count').innerText = n === 1 ? 'แค่คุณคนเดียว' : `${n} คนออนไลน์`;
+        });
+
+        window.addEventListener('beforeunload', () => {
+            navigator.sendBeacon && navigator.sendBeacon('');
+            deleteDoc(presRef).catch(() => {});
+        });
+    }
+
+    function setupListeners() {
+        setDoc(doc(db, 'rooms', ROOM_ID), { createdAt: serverTimestamp() }, { merge: true });
+        onSnapshot(collection(db, 'rooms', ROOM_ID, 'cards'), snap => {
+            cards = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+            renderAll();
+        });
+
+        onSnapshot(collection(db, 'rooms', ROOM_ID, 'bills'), snap => {
+            bills = {};
+            snap.docs.forEach(d => bills[d.id] = d.data());
+            renderAll();
+        });
+    }
+
+    window.switchTab = (tab) => {
+        currentTab = tab;
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+        document.getElementById('tab-' + tab).classList.remove('hidden');
+        document.querySelectorAll('.nav-btn').forEach(b => {
+            b.classList.remove('shopee-orange'); b.classList.add('text-slate-400');
+        });
+        document.getElementById('nav-' + tab).classList.add('shopee-orange');
+        document.getElementById('nav-' + tab).classList.remove('text-slate-400');
+        renderAll();
+    };
+
+    window.switchDashboardView = (status) => {
+        dashFilter = status;
+        ['unpaid','paid'].forEach(s => {
+            document.getElementById('tab-' + s).classList.toggle('tab-active', s === status);
+            document.getElementById('tab-' + s).classList.toggle('text-slate-500', s !== status);
+        });
+        renderDashboard();
+    };
+
+    window.toggleMonth = (key) => { expandedMonths.has(key) ? expandedMonths.delete(key) : expandedMonths.add(key); renderDashboard(); };
+    window.openOverview = () => { calcOverview(); document.getElementById('overview-modal').classList.remove('hidden'); };
+    window.closeModal   = (id) => document.getElementById(id)?.classList.add('hidden');
+
+    function calcOverview() {
+        let unpaid = 0, paid = 0;
+        const cy = new Date().getFullYear().toString();
+        Object.keys(bills).forEach(k => {
+            const [y] = k.split('-');
+            Object.values(bills[k]).forEach(b => {
+                if (!b.paid) unpaid += b.max || 0;
+                else if (y === cy) paid += b.max || 0;
+            });
+        });
+        document.getElementById('ov-total-unpaid').innerText = `฿${unpaid.toLocaleString()}`;
+        document.getElementById('ov-total-paid').innerText   = `฿${paid.toLocaleString()}`;
+
+        const ub = document.getElementById('usage-bars');
+        ub.innerHTML = cards.length ? '' : '<p class="text-xs text-slate-300 italic text-center py-4">ยังไม่มีบัตร</p>';
+        cards.forEach(card => {
+            let used = 0;
+            Object.keys(bills).sort().reverse().some(k => {
+                if (bills[k][card.name]) { used = bills[k][card.name].max || 0; return true; }
+            });
+            const pct = card.limit > 0 ? Math.min(100, used / card.limit * 100) : 0;
+            ub.innerHTML += `<div><div class="flex justify-between text-[11px] mb-1 font-medium"><span class="text-slate-600 font-semibold">${card.name}</span><span class="text-slate-400">${pct.toFixed(0)}% (${used.toLocaleString()} / ${card.limit.toLocaleString()})</span></div><div class="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-orange-500 rounded-full" style="width:${pct}%"></div></div></div>`;
+        });
+
+        const tb = document.getElementById('trend-bars');
+        tb.innerHTML = '';
+        const last6 = [];
+        let t = new Date();
+        for (let i = 0; i < 6; i++) {
+            last6.unshift(`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}`);
+            t.setMonth(t.getMonth() - 1);
+        }
+        const maxV = Math.max(...last6.map(k => bills[k] ? Object.values(bills[k]).reduce((s,b) => s+(b.max||0),0) : 0), 1000);
+        last6.forEach(k => {
+            const [,m] = k.split('-');
+            const total = bills[k] ? Object.values(bills[k]).reduce((s,b) => s+(b.max||0),0) : 0;
+            tb.innerHTML += `<div class="flex flex-col items-center flex-1 gap-1 h-full"><div class="w-full bg-orange-50 rounded-t-md relative flex flex-col justify-end min-h-[4px] h-full"><div class="w-full bg-orange-400 rounded-t-md" style="height:${(total/maxV)*100}%"></div></div><span class="text-[8px] font-bold text-slate-400">${MONTHS[parseInt(m)-1]}</span></div>`;
+        });
+    }
+
+    function renderDashboard() {
+        const list = document.getElementById('dashboard-month-list');
+        if (!list) return;
+        list.innerHTML = ''; let hasData = false;
+        const now = new Date(); const nowKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+        const sorted = Object.keys(bills).sort((a, b) => {
+            const future = (k) => k > nowKey;
+            if (future(a) && future(b)) return a.localeCompare(b);
+            if (!future(a) && !future(b)) return b.localeCompare(a); 
+            return future(a) ? 1 : -1; 
+        });
+
+        const reordered = [];
+        const curIdx = sorted.indexOf(nowKey);
+        if (curIdx > -1) { reordered.push(nowKey); sorted.splice(curIdx, 1); }
+        reordered.push(...sorted);
+
+        reordered.forEach(dateKey => {
+            const [year, month] = dateKey.split('-');
+            const mName = MONTHS[parseInt(month)-1];
+            const monthBills = Object.keys(bills[dateKey]).filter(cn => (dashFilter === 'paid') === !!bills[dateKey][cn].paid).map(cn => ({ cardName: cn, ...bills[dateKey][cn] }));
+            if (!monthBills.length) return;
+            hasData = true;
+
+            const total = monthBills.reduce((s,b) => s+(b.max||0), 0);
+            const expanded = expandedMonths.has(dateKey);
+            const tag = dashFilter === 'paid' ? `<span class="status-tag-paid">ชำระครบ</span>` : `<span class="status-tag-unpaid">ค้าง ${monthBills.length} รายการ</span>`;
+            const isCurrent = dateKey === nowKey;
+
+            list.innerHTML += `<div class="bg-white shadow-sm border-b border-slate-50 overflow-hidden ${isCurrent ? 'border-l-4 border-l-orange-400' : ''}"><div class="month-card flex justify-between items-center p-4" onclick="toggleMonth('${dateKey}')"><div class="flex flex-col gap-1"><div class="flex items-center gap-2"><h4 class="text-[17px] font-medium text-slate-900">${mName} ${year}</h4>${isCurrent ? '<span class="text-[9px] font-bold text-orange-400 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200">เดือนนี้</span>' : ''}</div><div>${tag}</div></div><div class="flex items-center gap-2"><span class="text-[17px] font-semibold text-slate-900">฿${total.toLocaleString()}</span><i class="fas fa-chevron-down text-slate-300 text-[12px] transition-transform duration-300 ${expanded ? 'rotate-180' : ''}"></i></div></div><div class="${expanded ? 'max-h-[2000px]' : 'max-h-0'} transition-all duration-300 ease-in-out bg-slate-50/50">${monthBills.map(bill => {
+                const hasPaidNote = bill.paid && bill.paidAmount != null;
+                const timingLabel = bill.payTiming === 'late' ? '<span class="text-[9px] font-bold text-amber-500 bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200">ช้ากว่ากำหนด</span>' : bill.payTiming === 'ontime' ? '<span class="text-[9px] font-bold text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200">ตรงกำหนด</span>' : '';
+                const paidDiff = hasPaidNote && bill.paidAmount !== bill.max ? `<span class="text-[9px] text-slate-400">(ต่างจากยอด ฿${Math.abs(bill.paidAmount - bill.max).toLocaleString()}${bill.paidAmount < bill.max ? ' น้อยกว่า' : ' มากกว่า'})</span>` : '';
+                return `<div class="px-6 py-3 border-b border-white/50" onclick="event.stopPropagation(); handleTogglePaid('${dateKey}','${bill.cardName}')"><div class="flex justify-between items-center"><div class="flex flex-col"><span class="text-sm font-medium text-slate-700">${bill.cardName}</span><span class="text-[10px] text-slate-400">ครบกำหนด ${String(bill.actualDue||1).padStart(2,'0')} ${mName}</span></div><div class="flex items-center gap-3"><div class="text-right"><span class="text-sm font-medium text-slate-600">฿${(bill.max||0).toLocaleString()}</span>${hasPaidNote && bill.paidAmount !== bill.max ? `<div class="text-[10px] text-green-600 font-medium">จ่าย ฿${bill.paidAmount.toLocaleString()}</div>` : ''}</div><div class="w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${bill.paid ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300'}">${bill.paid ? '<i class="fas fa-check text-[10px]"></i>' : ''}</div></div></div>${hasPaidNote ? `<div class="flex items-center gap-2 mt-1.5">${timingLabel}${paidDiff}</div>` : ''}</div>`;
+            }).join('')}</div></div>`;
+        });
+        if (!hasData) list.innerHTML = `<div class="py-24 text-center opacity-30 flex flex-col items-center gap-4"><i class="fas fa-receipt text-6xl"></i><p class="text-sm font-medium text-slate-400 uppercase">ไม่มีข้อมูล${dashFilter === 'paid' ? 'ที่ชำระแล้ว' : 'ค้างชำระ'}</p></div>`;
+    }
+
+    window.handleTogglePaid = (key, cardName) => {
+        const bill = bills[key]?.[cardName]; if (!bill) return;
+        if (bill.paid) {
+            const updated = { ...bills[key] };
+            updated[cardName] = { ...updated[cardName], paid: false, paidAmount: null, payTiming: null };
+            setDoc(doc(db, 'rooms', ROOM_ID, 'bills', key), updated);
+            return;
+        }
+        const [year, month] = key.split('-'); const mName = MONTHS[parseInt(month)-1];
+        payCtx = { key, cardName, billMax: bill.max || 0, dueDay: bill.actualDue || 1, monthName: `${mName} ${year}` };
+        payType   = 'full'; payTiming = 'ontime';
+        document.getElementById('pay-modal-title').innerText = `จ่าย ${cardName}`;
+        document.getElementById('pay-modal-sub').innerText   = `ครบกำหนด ${String(payCtx.dueDay).padStart(2,'0')} ${payCtx.monthName}`;
+        document.getElementById('pay-full-amt').innerText    = `฿${payCtx.billMax.toLocaleString()}`;
+        document.getElementById('pay-amount-input').value   = '';
+        document.getElementById('pay-custom-input').classList.add('hidden');
+        highlightPayType(); highlightTiming();
+        document.getElementById('pay-modal').classList.remove('hidden');
+    };
+
+    window.selectPayType = (type) => { payType = type; document.getElementById('pay-custom-input').classList.toggle('hidden', type !== 'custom'); if (type === 'custom') document.getElementById('pay-amount-input').focus(); highlightPayType(); };
+    window.selectTiming = (t) => { payTiming = t; highlightTiming(); };
+
+    function highlightPayType() {
+        document.getElementById('pay-btn-full').className   = payType === 'full' ? 'py-3 rounded-xl border-2 border-green-400 bg-green-50 text-green-700 text-xs font-bold transition-all' : 'py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-500 text-xs font-bold transition-all';
+        document.getElementById('pay-btn-custom').className = payType === 'custom' ? 'py-3 rounded-xl border-2 border-orange-400 bg-orange-50 text-orange-700 text-xs font-bold transition-all' : 'py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-500 text-xs font-bold transition-all';
+    }
+
+    function highlightTiming() {
+        document.getElementById('timing-btn-ontime').className   = payTiming === 'ontime' ? 'py-3 rounded-xl border-2 border-emerald-400 bg-emerald-50 text-emerald-700 text-xs font-bold transition-all' : 'py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-500 text-xs font-bold transition-all';
+        document.getElementById('timing-btn-late').className = payTiming === 'late' ? 'py-3 rounded-xl border-2 border-amber-400 bg-amber-50 text-amber-700 text-xs font-bold transition-all' : 'py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-500 text-xs font-bold transition-all';
+    }
+
+    window.cancelPayModal = () => document.getElementById('pay-modal').classList.add('hidden');
+    window.confirmPayModal = async () => {
+        const { key, cardName, billMax } = payCtx;
+        const paidAmount = payType === 'full' ? billMax : parseFloat(document.getElementById('pay-amount-input').value) || 0;
+        const updated = { ...bills[key] };
+        updated[cardName] = { ...updated[cardName], paid: true, paidAmount, payTiming };
+        await setDoc(doc(db, 'rooms', ROOM_ID, 'bills', key), updated);
+        document.getElementById('pay-modal').classList.add('hidden');
+        toast(`บันทึก ฿${paidAmount.toLocaleString()} ${payTiming === 'late' ? '(ช้ากว่ากำหนด)' : '(ตรงกำหนด)'} ✓`);
+    };
+
+    function renderCardList() {
+        const list = document.getElementById('card-list'); if (!list) return;
+        list.innerHTML = cards.length ? '' : '<div class="py-20 text-center opacity-30 text-xs font-medium uppercase tracking-widest">ยังไม่มีบัตร</div>';
+        cards.forEach(card => {
+            list.innerHTML += `<div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-start"><div><h4 class="font-bold text-slate-800 text-lg">${card.name}</h4><div class="text-[12px] text-slate-400 mt-1 space-y-0.5"><p>วงเงิน: ฿${(card.limit||0).toLocaleString()}</p><p>ตัดรอบวันที่: ${card.cycle} | จ่ายวันที่: ${card.due}</p></div></div><div class="flex gap-4"><button onclick="openModal('card-modal','${card.id}')" class="text-slate-300 hover:text-orange-400"><i class="fas fa-edit"></i></button><button onclick="handleDeleteCard('${card.id}')" class="text-slate-300 hover:text-red-400"><i class="fas fa-trash"></i></button></div></div>`;
+        });
+    }
+
+    window.openModal = (id, cardId = null) => {
+        editingCardId = cardId;
+        if (cardId) {
+            const c = cards.find(c => c.id === cardId);
+            if (c) {
+                document.getElementById('m-card-name').value  = c.name; document.getElementById('m-card-limit').value = c.limit;
+                document.getElementById('m-card-cycle').value = c.cycle; document.getElementById('m-card-due').value   = c.due;
+            }
+        } else { ['m-card-name','m-card-limit','m-card-cycle','m-card-due'].forEach(f => { const el = document.getElementById(f); if (el) el.value = ''; }); }
+        document.getElementById(id).classList.remove('hidden');
+    };
+
+    window.handleSaveCard = async () => {
+        const name  = document.getElementById('m-card-name').value.trim(); const limit = parseFloat(document.getElementById('m-card-limit').value) || 0;
+        const cycle = parseInt(document.getElementById('m-card-cycle').value)   || 1; const due   = parseInt(document.getElementById('m-card-due').value)     || 1;
+        if (!name) { toast('กรุณากรอกชื่อบัตร'); return; }
+        const cardId = editingCardId || crypto.randomUUID();
+        await setDoc(doc(db, 'rooms', ROOM_ID, 'cards', cardId), { name, limit, cycle, due, order: Date.now() });
+        closeModal('card-modal'); toast('บันทึกบัตรแล้ว ✓');
+    };
+
+    window.handleDeleteCard = async (cardId) => { if (!confirm('ลบบัตรนี้?')) return; await deleteDoc(doc(db, 'rooms', ROOM_ID, 'cards', cardId)); toast('ลบบัตรแล้ว'); };
+
+    window.renderBillList = renderBillList;
+    function renderBillList() {
+        const yearSel = document.getElementById('entry-year'); const year    = yearSel?.value || new Date().getFullYear();
+        const month   = String(selectedMonth).padStart(2, '0'); const key     = `${year}-${month}`;
+        const list    = document.getElementById('bill-entry-list'); if (!list) return;
+        list.innerHTML = '';
+        if (!cards.length) { list.innerHTML = '<div class="py-20 text-center opacity-30 text-xs font-bold uppercase tracking-widest text-slate-400">กรุณาเพิ่มบัตรก่อนลงยอด</div>'; return; }
+        cards.forEach(card => {
+            const b = bills[key]?.[card.name] || { max: 0, actualDue: card.due, paid: false };
+            const hasAmount = (b.max || 0) > 0; const isFull    = hasAmount && b.paid;
+            const stateClass = isFull ? 'bill-card-full' : hasAmount ? 'bill-card-partial' : '';
+            const el = document.createElement('div');
+            el.className = `bg-white p-5 rounded-2xl border border-slate-100 shadow-sm ${stateClass}`;
+            el.innerHTML = `<div class="flex justify-between items-center mb-4"><p class="font-bold text-slate-800">${card.name}</p><div class="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-full border border-slate-100"><span class="text-[10px] font-bold text-slate-400">วันจ่ายจริง:</span><input type="number" value="${b.actualDue}" class="actual-due-input w-6 bg-transparent text-xs font-bold shopee-orange outline-none text-center"></div></div><div class="grid grid-cols-2 gap-4"><div><label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase">ยอดที่ใช้ (฿)</label><input type="number" value="${b.max||''}" placeholder="0.00" class="max-input w-full border-b border-slate-200 py-1 text-lg font-bold outline-none focus:border-orange-500"></div><div class="flex items-center justify-end pt-3"><label class="flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer select-none"><input type="checkbox" ${b.paid?'checked':''} class="paid-check w-4 h-4 accent-orange-500">ชำระแล้ว</label></div></div>`;
+            el.querySelector('.actual-due-input').onchange = e => saveBill(card.name, 'actualDue', e.target.value);
+            el.querySelector('.max-input').onchange        = e => saveBill(card.name, 'max',       e.target.value);
+            el.querySelector('.paid-check').onchange       = e => {
+                if (e.target.checked) {
+                    e.target.checked = false;
+                    const year  = document.getElementById('entry-year')?.value || new Date().getFullYear();
+                    const month = String(selectedMonth).padStart(2, '0');
+                    handleTogglePaid(`${year}-${month}`, card.name);
+                } else { saveBill(card.name, 'paid', false); }
+            };
+            list.appendChild(el);
+        });
+    }
+
+    async function saveBill(cardName, field, value) {
+        const year  = document.getElementById('entry-year')?.value || new Date().getFullYear();
+        const month = String(selectedMonth).padStart(2, '0'); const key   = `${year}-${month}`;
+        const updated = bills[key] ? { ...bills[key] } : {};
+        if (!updated[cardName]) { const card = cards.find(c => c.name === cardName); updated[cardName] = { max: 0, actualDue: card?.due || 1, paid: false }; }
+        if      (field === 'paid')      updated[cardName].paid      = value;
+        else if (field === 'actualDue') updated[cardName].actualDue = parseInt(value) || 1;
+        else                            updated[cardName].max       = parseFloat(value) || 0;
+        await setDoc(doc(db, 'rooms', ROOM_ID, 'bills', key), updated);
+    }
+
+    function renderAll() {
+        if      (currentTab === 'dashboard') renderDashboard();
+        else if (currentTab === 'cards')     renderCardList();
+        else if (currentTab === 'bills')     { renderMonthSelect(); renderBillList(); }
+    }
+
+    function initYearSelector() {
+        const sel = document.getElementById('entry-year'); if (!sel) return; sel.innerHTML = '';
+        YEARS.forEach(y => { const opt = document.createElement('option'); opt.value = y; opt.innerText = y; if (y === new Date().getFullYear()) opt.selected = true; sel.appendChild(opt); });
+    }
+
+    function renderMonthSelect() {
+        const yearSel = document.getElementById('entry-year'); const year    = yearSel?.value || new Date().getFullYear();
+        const c = document.getElementById('month-quick-select'); if (!c) return; c.innerHTML = '';
+        MONTHS.forEach((m, i) => {
+            const n   = i + 1; const key = `${year}-${String(n).padStart(2,'0')}`; const monthData = bills[key] || {};
+            let hasAny  = false; let allFull = false;
+            if (cards.length > 0) { const filled = cards.filter(card => (monthData[card.name]?.max || 0) > 0); hasAny  = filled.length > 0; allFull = filled.length === cards.length; }
+            const isSelected = selectedMonth === n; let extraClass = '';
+            if (!isSelected) { if (allFull && hasAny) extraClass = 'month-btn-full'; else if (hasAny)       extraClass = 'month-btn-partial'; }
+            const btn = document.createElement('button'); btn.innerText = m; btn.className = `month-btn ${isSelected ? 'month-btn-active' : extraClass}`;
+            btn.onclick   = () => { selectedMonth = n; renderMonthSelect(); renderBillList(); };
+            c.appendChild(btn);
+        });
+    }
+
+    initYearSelector(); renderMonthSelect();
+
+    signInAnonymously(auth).catch(err => {
+        console.error('Auth failed:', err);
+        document.getElementById('loading-overlay').innerHTML = `
+            <div class="text-center p-8">
+                <i class="fas fa-exclamation-triangle text-4xl text-orange-400 mb-4"></i>
+                <p class="font-bold text-slate-700 mb-2">เชื่อมต่อไม่ได้</p>
+                <p class="text-xs text-slate-400 mb-4">กรุณาเปิด Anonymous Auth ใน Firebase Console</p>
+                <button onclick="location.reload()" class="px-6 py-2 shopee-bg-orange text-white rounded-full text-sm font-bold">ลองใหม่</button>
+            </div>`;
+    });
+
+    onAuthStateChanged(auth, async (u) => {
+        if (!u) return; uid = u.uid;
+        setupListeners(); await setupPresence(uid);
+        document.getElementById('loading-overlay').style.display = 'none';
+    });
+</script>
+
 </body>
 </html>
