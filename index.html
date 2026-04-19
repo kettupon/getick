@@ -1049,8 +1049,10 @@
     function renderDashboard() {
         const list = document.getElementById('dashboard-month-list');
         if (!list) return;
-        list.innerHTML = ''; let hasData = false;
-        const now = new Date(); const nowKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+        list.innerHTML = ''; 
+        let hasData = false;
+        const now = new Date(); 
+        const nowKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
 
         const sorted = Object.keys(bills).sort((a, b) => {
             const future = (k) => k > nowKey;
@@ -1067,7 +1069,13 @@
         reordered.forEach(dateKey => {
             const [year, month] = dateKey.split('-');
             const mName = MONTHS[parseInt(month)-1];
-            const monthBills = Object.keys(bills[dateKey]).filter(cn => (dashFilter === 'paid') === !!bills[dateKey][cn].paid).map(cn => ({ cardName: cn, ...bills[dateKey][cn] }));
+            
+            // นำบิลมาเรียงตามวันที่ครบกำหนดชำระ (ใกล้สุดอยู่บนสุด)
+            const monthBills = Object.keys(bills[dateKey])
+                .filter(cn => (dashFilter === 'paid') === !!bills[dateKey][cn].paid)
+                .map(cn => ({ cardName: cn, ...bills[dateKey][cn] }))
+                .sort((a, b) => (a.actualDue || 1) - (b.actualDue || 1));
+
             if (!monthBills.length) return;
             hasData = true;
 
@@ -1076,14 +1084,82 @@
             const tag = dashFilter === 'paid' ? `<span class="status-tag-paid">ชำระครบ</span>` : `<span class="status-tag-unpaid">ค้าง ${monthBills.length} รายการ</span>`;
             const isCurrent = dateKey === nowKey;
 
-            list.innerHTML += `<div class="bg-white shadow-sm border-b border-slate-50 overflow-hidden ${isCurrent ? 'border-l-4 border-l-orange-400' : ''}"><div class="month-card flex justify-between items-center p-4" onclick="toggleMonth('${dateKey}')"><div class="flex flex-col gap-1"><div class="flex items-center gap-2"><h4 class="text-[17px] font-medium text-slate-900">${mName} ${year}</h4>${isCurrent ? '<span class="text-[9px] font-bold text-orange-400 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200">เดือนนี้</span>' : ''}</div><div>${tag}</div></div><div class="flex items-center gap-2"><span class="text-[17px] font-semibold text-slate-900">฿${total.toLocaleString()}</span><i class="fas fa-chevron-down text-slate-300 text-[12px] transition-transform duration-300 ${expanded ? 'rotate-180' : ''}"></i></div></div><div class="${expanded ? 'max-h-[2000px]' : 'max-h-0'} transition-all duration-300 ease-in-out bg-slate-50/50">${monthBills.map(bill => {
+            let htmlStr = `
+                <div class="bg-white shadow-sm border-b border-slate-50 overflow-hidden ${isCurrent ? 'border-l-4 border-l-orange-400' : ''}">
+                    <div class="month-card flex justify-between items-center p-4" onclick="toggleMonth('${dateKey}')">
+                        <div class="flex flex-col gap-1">
+                            <div class="flex items-center gap-2">
+                                <h4 class="text-[17px] font-medium text-slate-900">${mName} ${year}</h4>
+                                ${isCurrent ? '<span class="text-[9px] font-bold text-orange-400 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200">เดือนนี้</span>' : ''}
+                            </div>
+                            <div>${tag}</div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[17px] font-semibold text-slate-900">฿${total.toLocaleString()}</span>
+                            <i class="fas fa-chevron-down text-slate-300 text-[12px] transition-transform duration-300 ${expanded ? 'rotate-180' : ''}"></i>
+                        </div>
+                    </div>
+                    <div class="${expanded ? 'max-h-[2000px]' : 'max-h-0'} transition-all duration-300 ease-in-out bg-slate-50/50">
+            `;
+
+            htmlStr += monthBills.map(bill => {
                 const hasPaidNote = bill.paid && bill.paidAmount != null;
                 const timingLabel = bill.payTiming === 'late' ? '<span class="text-[9px] font-bold text-amber-500 bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200">ช้ากว่ากำหนด</span>' : bill.payTiming === 'ontime' ? '<span class="text-[9px] font-bold text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200">ตรงกำหนด</span>' : '';
                 const paidDiff = hasPaidNote && bill.paidAmount !== bill.max ? `<span class="text-[9px] text-slate-400">(ต่างจากยอด ฿${Math.abs(bill.paidAmount - bill.max).toLocaleString()}${bill.paidAmount < bill.max ? ' น้อยกว่า' : ' มากกว่า'})</span>` : '';
-                return `<div class="px-6 py-3 border-b border-white/50" onclick="event.stopPropagation(); handleTogglePaid('${dateKey}','${bill.cardName}')"><div class="flex justify-between items-center"><div class="flex flex-col"><span class="text-sm font-medium text-slate-700">${bill.cardName}</span><span class="text-[10px] text-slate-400">ครบกำหนด ${String(bill.actualDue||1).padStart(2,'0')} ${mName}</span></div><div class="flex items-center gap-3"><div class="text-right"><span class="text-sm font-medium text-slate-600">฿${(bill.max||0).toLocaleString()}</span>${hasPaidNote && bill.paidAmount !== bill.max ? `<div class="text-[10px] text-green-600 font-medium">จ่าย ฿${bill.paidAmount.toLocaleString()}</div>` : ''}</div><div class="w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${bill.paid ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300'}">${bill.paid ? '<i class="fas fa-check text-[10px]"></i>' : ''}</div></div></div>${hasPaidNote ? `<div class="flex items-center gap-2 mt-1.5">${timingLabel}${paidDiff}</div>` : ''}</div>`;
-            }).join('')}</div></div>`;
+                
+                // คำนวณจำนวนวันที่เหลือก่อนครบกำหนดชำระ
+                const dueDate = new Date(parseInt(year), parseInt(month) - 1, bill.actualDue || 1);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const diffTime = dueDate.getTime() - today.getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                let daysLeftHtml = '';
+                if (!bill.paid) {
+                    if (diffDays > 0) {
+                        daysLeftHtml = `<span class="text-[9px] font-bold text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded-full border border-orange-200">อีก ${diffDays} วัน</span>`;
+                    } else if (diffDays === 0) {
+                        daysLeftHtml = `<span class="text-[9px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full border border-red-200">วันนี้!</span>`;
+                    } else {
+                        daysLeftHtml = `<span class="text-[9px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full border border-red-200">เลยกำหนด ${Math.abs(diffDays)} วัน</span>`;
+                    }
+                }
+
+                return `
+                    <div class="px-6 py-3 border-b border-white/50" onclick="event.stopPropagation(); handleTogglePaid('${dateKey}','${bill.cardName}')">
+                        <div class="flex justify-between items-center">
+                            <div class="flex flex-col">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-sm font-medium text-slate-700">${bill.cardName}</span>
+                                    ${daysLeftHtml}
+                                </div>
+                                <span class="text-[10px] text-slate-400">ครบกำหนด ${String(bill.actualDue||1).padStart(2,'0')} ${mName}</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="text-right">
+                                    <span class="text-sm font-medium text-slate-600">฿${(bill.max||0).toLocaleString()}</span>
+                                    ${hasPaidNote && bill.paidAmount !== bill.max ? `<div class="text-[10px] text-green-600 font-medium">จ่าย ฿${bill.paidAmount.toLocaleString()}</div>` : ''}
+                                </div>
+                                <div class="w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${bill.paid ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300'}">
+                                    ${bill.paid ? '<i class="fas fa-check text-[10px]"></i>' : ''}
+                                </div>
+                            </div>
+                        </div>
+                        ${hasPaidNote ? `<div class="flex items-center gap-2 mt-1.5">${timingLabel}${paidDiff}</div>` : ''}
+                    </div>`;
+            }).join('');
+
+            htmlStr += `</div></div>`;
+            list.innerHTML += htmlStr;
         });
-        if (!hasData) list.innerHTML = `<div class="py-24 text-center opacity-30 flex flex-col items-center gap-4"><i class="fas fa-receipt text-6xl"></i><p class="text-sm font-medium text-slate-400 uppercase">ไม่มีข้อมูล${dashFilter === 'paid' ? 'ที่ชำระแล้ว' : 'ค้างชำระ'}</p></div>`;
+
+        if (!hasData) {
+            list.innerHTML = `
+                <div class="py-24 text-center opacity-30 flex flex-col items-center gap-4">
+                    <i class="fas fa-receipt text-6xl"></i>
+                    <p class="text-sm font-medium text-slate-400 uppercase">ไม่มีข้อมูล${dashFilter === 'paid' ? 'ที่ชำระแล้ว' : 'ค้างชำระ'}</p>
+                </div>`;
+        }
     }
 
     window.handleTogglePaid = (key, cardName) => {
