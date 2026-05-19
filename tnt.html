@@ -1321,10 +1321,14 @@
         let authUser = null;
         let dbDocRef = null;
         let syncTimeout = null;
-        let isInitialLoad = true;
+        let skipNextSnapshot = false; // Prevent infinite loop: local write → onSnapshot → write again
 
         const LS_KEY = 'thanawat_txns_v5';
         const LS_RATE = 'thanawat_rate_v2';
+
+        // === GLOBAL SHARED DOC PATH (no per-user isolation) ===
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'thanawat-app';
+        dbDocRef = doc(db, 'thanawat_shared', appId);
 
         // Utility functions
         const mthShort = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
@@ -1355,11 +1359,12 @@
                 }));
             } catch (e) { }
 
-            // 2. Save to Firebase (Debounced)
+            // 2. Save to Firebase (Debounced) — GLOBAL SHARED
             clearTimeout(syncTimeout);
             syncTimeout = setTimeout(async () => {
-                if (authUser && dbDocRef) {
+                if (dbDocRef) {
                     try {
+                        skipNextSnapshot = true; // Don't re-render from our own write
                         await setDoc(dbDocRef, {
                             txns: txns,
                             nextId: nextId,
@@ -1371,10 +1376,11 @@
                             updatedAt: new Date().toISOString()
                         });
                     } catch (err) {
+                        skipNextSnapshot = false;
                         console.error("Firebase write error:", err);
                     }
                 }
-            }, 1000);
+            }, 800);
         }
 
         function loadLocalData() {
@@ -1410,45 +1416,47 @@
             }
         };
 
+        // === GLOBAL Real-Time Listener (runs immediately, no auth needed for listening) ===
+        onSnapshot(dbDocRef, (docSnap) => {
+            document.getElementById('cloud-indicator').classList.add('online');
+            document.getElementById('cloud-indicator').title = "เชื่อมต่อฐานข้อมูลสำเร็จ (Global Shared)";
+
+            // Skip if this snapshot was triggered by our own write
+            if (skipNextSnapshot) {
+                skipNextSnapshot = false;
+                return;
+            }
+
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                // Always sync incoming data from other users
+                if (data.txns) {
+                    txns = data.txns;
+                    nextId = data.nextId || nextId;
+                }
+                if (data.settings) {
+                    document.getElementById('mrr').value = data.settings.mrr;
+                    document.getElementById('spread').value = data.settings.spread;
+                    displayFilter = data.settings.filter || 'ALL';
+                    syncFilterUI();
+                }
+                // Update local storage with cloud data
+                try {
+                    localStorage.setItem(LS_KEY, JSON.stringify({ txns, nextId }));
+                } catch (e) { }
+                renderLeft();
+                simulate();
+            }
+        }, (error) => {
+            console.error("Firestore listen error:", error);
+            document.getElementById('cloud-indicator').classList.remove('online');
+            document.getElementById('cloud-indicator').title = "ไม่สามารถอ่านฐานข้อมูลได้ (ติด Permission)";
+        });
+
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 authUser = user;
-
-                // Strict Path Structure 
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'thanawat-app';
-                dbDocRef = doc(db, 'artifacts', appId, 'users', user.uid, 'thanawat_data', 'app_state');
-
-                // Listen for cloud changes
-                onSnapshot(dbDocRef, (docSnap) => {
-                    document.getElementById('cloud-indicator').classList.add('online');
-                    document.getElementById('cloud-indicator').title = "เชื่อมต่อฐานข้อมูลสำเร็จ";
-
-                    if (docSnap.exists()) {
-                        const data = docSnap.data();
-                        if (isInitialLoad) {
-                            if (data.txns) {
-                                txns = data.txns;
-                                nextId = data.nextId || nextId;
-                            }
-                            if (data.settings) {
-                                document.getElementById('mrr').value = data.settings.mrr;
-                                document.getElementById('spread').value = data.settings.spread;
-                                displayFilter = data.settings.filter || 'ALL';
-                                syncFilterUI();
-                            }
-                            isInitialLoad = false;
-                            renderLeft();
-                            simulate();
-                        }
-                    } else {
-                        isInitialLoad = false;
-                        saveData();
-                    }
-                }, (error) => {
-                    console.error("Firestore listen error:", error);
-                    document.getElementById('cloud-indicator').classList.remove('online');
-                    document.getElementById('cloud-indicator').title = "ไม่สามารถอ่านฐานข้อมูลได้ (ติด Permission)";
-                });
+                console.log("Authenticated as:", user.uid, "(data is global shared)");
             }
         });
 
