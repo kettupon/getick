@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>กรุงไทยธนวัฏ — จำลองภาระหนี้</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f4f0;
+  --surface: #ffffff;
+  --surface2: #f0efe9;
+  --border: #dddbd3;
+  --border2: #c8c5ba;
+  --text: #1a1916;
+  --text2: #6b6860;
+  --text3: #9e9b93;
+  --accent: #1a5c3a;
+  --accent-light: #e8f3ed;
+  --accent-mid: #2d7a50;
+  --danger: #c0392b;
+  --danger-light: #fdf0ef;
+  --warn: #b45309;
+  --warn-light: #fef3e2;
+  --info: #1d4ed8;
+  --info-light: #eff6ff;
+  --green: #166534;
+  --green-light: #dcfce7;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans Thai', sans-serif;
+  --radius: 6px;
+  --radius-lg: 10px;
+  
+  /* Table Column Widths for Locking */
+  --w-date: 72px;
+  --w-amt: 70px;
+  --w-int: 70px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh; width: 100vw; 
+  overflow: hidden; 
+  display: flex; flex-direction: column;
+}
+
+/* App Full Height Layout */
+.app { 
+  flex: 1; display: flex; flex-direction: column; 
+  max-width: 1280px; width: 100%; margin: 0 auto; 
+  padding: 12px 12px 16px; gap: 10px;
+  height: 100%;
+}
+
+/* Header */
+.header {
+  flex-shrink: 0;
+  display: flex; justify-content: space-between; align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.header h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; line-height: 1.2; }
+.header .sub { font-size: 11px; color: var(--text2); display: flex; align-items: center; gap: 6px;}
+.cloud-status { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--text3); }
+.cloud-status.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+.header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.badge {
+  font-size: 11px; font-family: var(--mono);
+  background: var(--accent-light); color: var(--accent);
+  border: 1px solid #b6d9c5; padding: 3px 10px; border-radius: 20px;
+  white-space: nowrap; font-weight: 600;
+}
+.btn-settings {
+  font-family: var(--sans); font-size: 11px; font-weight: 500;
+  background: var(--surface); border: 1px solid var(--border2); color: var(--text);
+  padding: 4px 8px; border-radius: 6px; cursor: pointer; transition: all .15s;
+  display: flex; align-items: center; gap: 4px;
+}
+.btn-settings:hover { background: var(--surface2); }
+.header-actions { display: flex; gap: 6px; }
+
+/* Icon Buttons */
+.btn-icon {
+  background: var(--surface); border: 1px solid var(--border2); color: var(--text2);
+  border-radius: 6px; width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: all .15s;
+}
+.btn-icon:hover { background: var(--surface2); color: var(--text); }
+.btn-icon.danger { background: var(--danger-light); color: var(--danger); border-color: #f5c2c7; }
+.btn-icon.danger:hover { background: #f8d7da; }
+.btn-icon.green { background: var(--green-light); color: var(--green); border-color: #badbcc; }
+.btn-icon.green:hover { background: #d1e7dd; }
+.btn-icon.accent { background: var(--accent-light); color: var(--accent); border-color: #b6d9c5; }
+.btn-icon.accent:hover { background: #d4eadb; }
+.btn-icon.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* Layout Container (Base Mobile setup) */
+.layout-container { 
+  flex: 1; display: flex; flex-direction: column; gap: 12px; 
+  min-height: 0; 
+}
+.section-top { flex: 4; display: flex; flex-direction: column; min-height: 0; position: relative; z-index: 10; }
+.section-bottom { flex: 6; display: flex; flex-direction: column; min-height: 0; position: relative; z-index: 5; }
+
+/* Layout States (Expand/Collapse) */
+.layout-container.exp-top .section-bottom { display: none; }
+.layout-container.exp-top .section-top { flex: 1; }
+.layout-container.exp-bottom .section-top { display: none; }
+.layout-container.exp-bottom .section-bottom { flex: 1; }
+
+/* Desktop Specific Layout */
+@media (min-width: 769px) {
+  .header h1 { font-size: 22px; }
+  .layout-container { flex-direction: row; }
+  .section-top { flex: 0 0 380px; }
+  .section-bottom { flex: 1; }
+  
+  /* Hide Expand Buttons on Desktop */
+  #btn-exp-top, #btn-exp-bottom { display: none !important; }
+  
+  /* Show Desktop Summary, Hide Mobile Summary Button */
+  .desktop-summ-grid { display: grid !important; }
+  .btn-summary-mobile { display: none !important; }
+  
+  /* Force both sections to stay active even if expanded class is somehow added */
+  .layout-container.exp-top .section-bottom,
+  .layout-container.exp-bottom .section-top { display: flex !important; }
+  .layout-container.exp-top .section-top { flex: 0 0 380px !important; }
+  .layout-container.exp-bottom .section-bottom { flex: 1 !important; }
+}
+
+/* Panel System */
+.panel {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); display: flex; flex-direction: column;
+  height: 100%; min-height: 0;
+}
+.panel-head {
+  padding: 8px 12px; border-bottom: 1px solid var(--border);
+  font-size: 11px; font-weight: 600; letter-spacing: .6px; color: var(--text2);
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  flex-shrink: 0; border-top-left-radius: calc(var(--radius-lg) - 1px);
+  border-top-right-radius: calc(var(--radius-lg) - 1px); background: var(--surface);
+}
+.panel-head-title { display: flex; align-items: center; gap: 6px; text-transform: uppercase; }
+.panel-head .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+
+/* Transactions Panel Tools */
+.panel-txns-scroll { 
+  flex: 1; overflow-y: auto; padding: 8px 10px; 
+  display: flex; flex-direction: column; gap: 6px; overscroll-behavior: contain;
+}
+
+/* TXN ITEM */
+.txn-item {
+  border-radius: var(--radius); border: 1px solid var(--border);
+  background: var(--surface2); overflow: hidden; flex-shrink: 0;
+}
+.txn-item.txn-W { border-left: 3px solid var(--danger); }
+.txn-item.txn-D { border-left: 3px solid var(--accent); }
+.txn-view {
+  display: grid; grid-template-columns: 30px 1fr auto 28px;
+  gap: 6px; align-items: center; padding: 6px 8px; cursor: pointer; user-select: none;
+}
+.txn-type {
+  font-size: 9px; font-weight: 600; padding: 2px 4px; border-radius: 4px; text-align: center;
+}
+.txn-type.W { background: var(--danger-light); color: var(--danger); }
+.txn-type.D { background: var(--green-light); color: var(--green); }
+.txn-view-info { display: flex; flex-direction: column; min-width: 0; }
+.txn-date-val { font-family: var(--mono); font-size: 11px; color: var(--text2); }
+.txn-note-val { font-size: 9px; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.txn-amt-val { font-family: var(--mono); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.txn-item.txn-W .txn-amt-val { color: var(--danger); }
+.txn-item.txn-D .txn-amt-val { color: var(--green); }
+.btn-del {
+  width: 24px; height: 24px; border-radius: 4px; border: 1px solid var(--border);
+  background: transparent; color: var(--text3); cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; flex-shrink: 0;
+}
+
+/* Edit panel */
+.txn-edit { display: none; border-top: 1px solid var(--border); padding: 8px; gap: 6px; flex-direction: column; background: var(--surface); }
+.txn-edit.open { display: flex; }
+.txn-edit-row { display: flex; align-items: center; gap: 6px; }
+.txn-edit-label { font-size: 9px; color: var(--text3); width: 45px; flex-shrink: 0; }
+.txn-edit input[type=date], .txn-edit input[type=number], .txn-edit input[type=text] {
+  font-family: var(--mono); font-size: 11px; background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); padding: 4px 6px; border-radius: 4px; flex: 1;
+}
+
+/* Sticky Table Structure */
+.table-panel-wrap {
+  flex: 1; min-height: 0; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden; display: flex; flex-direction: column;
+}
+.table-header-tools {
+  padding: 8px 12px; border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--surface); flex-shrink: 0;
+}
+.table-header-tools h2 { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; display:flex; align-items:center; gap:6px;}
+.table-scroll { flex: 1; overflow: auto; position: relative; overscroll-behavior: contain; }
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
+
+/* Sticky Lock Columns Logic */
+th, td { padding: 6px; border-bottom: 1px solid var(--border); vertical-align: middle; white-space: nowrap; color: var(--text); background: var(--surface); }
+th { font-size: 10px; font-weight: 600; color: var(--text2); letter-spacing: .3px; }
+thead th { position: sticky; top: 0; z-index: 10; background: var(--surface2); border-bottom: 1px solid var(--border2); }
+.sticky-col { position: sticky; z-index: 5; background: var(--surface); }
+thead th.sticky-col { z-index: 15; background: var(--surface2); } 
+.col-date { left: 0; width: var(--w-date); min-width: var(--w-date); max-width: var(--w-date); text-align: center; }
+.col-wit  { left: var(--w-date); width: var(--w-amt); min-width: var(--w-amt); max-width: var(--w-amt); text-align: right; }
+.col-dep  { left: calc(var(--w-date) + var(--w-amt)); width: var(--w-amt); min-width: var(--w-amt); max-width: var(--w-amt); text-align: right; }
+.col-int  { left: calc(var(--w-date) + (var(--w-amt) * 2)); width: var(--w-int); min-width: var(--w-int); max-width: var(--w-int); text-align: right; border-right: 2px solid var(--border2); box-shadow: 2px 0 5px rgba(0,0,0,0.03); }
+td.mono { font-family: var(--mono); }
+tr:last-child td { border-bottom: none; }
+tr.row-M td { background: var(--surface2) !important; font-size: 10px; font-weight: 600; color: var(--text2); padding: 4px 10px; }
+tr.row-Y td { background: var(--accent) !important; color: #fff !important; border-bottom: none; padding: 6px 10px; font-weight: 600; }
+tr.row-W td { color: var(--danger); }
+tr.row-I td { color: var(--warn); background: var(--warn-light) !important; }
+tr.row-I td.sticky-col { background: #fdf5e6 !important; } 
+tr.row-D td { color: var(--green); }
+tr.row-F td { background: var(--info-light) !important; color: var(--info); font-weight: 600; }
+tr.row-F td.sticky-col { background: #e5f0ff !important; }
+
+/* Modals */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 99999;
+  display: none; align-items: center; justify-content: center; padding: 20px;
+}
+.modal-overlay.show { display: flex; animation: fadeIn 0.15s ease-out; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.modal-content {
+  background: var(--surface); padding: 16px; border-radius: var(--radius-lg);
+  width: 100%; max-width: 360px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.modal-header h3 { font-size: 14px; font-weight: 600; display:flex; align-items:center; gap:6px;}
+.btn-close { background: none; border: none; font-size: 16px; color: var(--text3); cursor: pointer; }
+
+/* Settings Form */
+.rate-result {
+  padding: 12px; background: var(--accent-light); border-radius: var(--radius);
+  border: 1px solid #b6d9c5; font-family: var(--mono); font-size: 16px; font-weight: 600;
+  color: var(--accent); display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.rate-result .label { font-size: 11px; color: var(--accent-mid); font-family: var(--sans); font-weight: 400; }
+.filter-btn {
+  padding: 6px 12px; font-size: 11px; font-weight: 600; cursor: pointer; border: none; 
+  background: var(--surface); color: var(--text2); flex:1; transition: all .15s;
+}
+.filter-btn.active { background: var(--accent); color: #fff; }
+
+/* Summary Grids */
+.summ-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.desktop-summ-grid { display: none; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; flex-shrink: 0;}
+.scard {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px; text-align:center;
+}
+.desktop-summ-grid .scard { padding: 10px 14px; text-align:left; border-radius: var(--radius-lg); }
+.scard .lbl { font-size: 11px; color: var(--text2); margin-bottom: 4px; }
+.scard .val { font-size: 16px; font-weight: 600; font-family: var(--mono); }
+.scard .val.red { color: var(--danger); }
+.scard .val.grn { color: var(--green); }
+.scard .val.warn { color: var(--warn); }
+.scard .val.acc { color: var(--accent); }
+
+/* Multiselect / Recurring Toolbars */
+.ms-toolbar {
+  display: none; flex-direction: column; gap: 6px;
+  padding: 8px 10px; border-bottom: 1px solid var(--border);
+  background: var(--accent-light); font-size: 12px;
+}
+.ms-toolbar.visible { display: flex; }
+.rec-input { font-family: var(--mono); font-size: 12px; background: var(--surface); border: 1px solid var(--border); padding: 6px; border-radius: 4px; width: 100%; box-sizing: border-box;}
+.rec-type-btn { padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; background: var(--surface); font-family: var(--sans); color: var(--text2); flex:1;}
+.rec-type-btn.active-W { background: var(--danger-light); color: var(--danger); }
+.rec-type-btn.active-D { background: var(--green-light); color: var(--green); }
+.btn-gen { width: 100%; padding: 10px 0; border-radius: var(--radius); border: 1px solid #b6d9c5; background: var(--accent); color: #fff; font-size: 13px; font-weight: 600; margin-top:10px; cursor: pointer;}
+
+/* Datepicker Modal */
+.dp-trigger { border: 1px solid var(--border); background: var(--surface); padding: 6px; border-radius: 4px; font-size: 12px; text-align: center; font-family: var(--mono); width: 100%; box-sizing: border-box; cursor: pointer;}
+.dp-popover {
+  display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+  z-index: 100000; padding: 16px; width: 280px;
+}
+.dp-popover.show { display: block; }
+.dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.dp-day { text-align: center; padding: 8px 0; border-radius: 4px; font-size: 12px; font-family: var(--mono); cursor: pointer;}
+.dp-day.selected { background: var(--accent); color: #fff; font-weight: 600; }
+.dp-footer { display: flex; justify-content: space-between; margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+/* Print Styles */
+@media print {
+  body { height: auto; overflow: visible; display: block; }
+  .app { height: auto; display: block; }
+  .header .header-actions, .section-top, .table-header-tools .btn-settings, .btn-icon, .desktop-summ-grid { display: none !important; }
+  .section-bottom { display: block; }
+  .table-panel-wrap { border: 1px solid #000; border-radius: 0; display: block; }
+  .table-scroll { overflow: visible; }
+  th, td { border: 1px solid #ddd; padding: 4px; font-size: 10px; color: #000 !important; }
+  .sticky-col { position: static; box-shadow: none; border-right: 1px solid #ddd; }
+  thead th { position: static; }
+  tr.row-Y td { background: #333 !important; color: #fff !important; }
+  @page { margin: 1cm; size: landscape; }
+}
+
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <h1>กรุงไทยธนวัฏ</h1>
+      <span class="sub">จำลองภาระหนี้และดอกเบี้ย <span id="cloud-indicator" class="cloud-status" title="กำลังเชื่อมต่อฐานข้อมูล..."></span></span>
+    </div>
+    <div class="header-right">
+      <div class="header-actions">
+        <button class="btn-settings btn-summary-mobile" onclick="toggleSummaryModal(true)">📊 สรุปยอด</button>
+        <button class="btn-settings" onclick="toggleSettingsModal(true)">⚙️ ตั้งค่า</button>
+      </div>
+      <span class="badge" id="rate-badge">12.345%</span>
+    </div>
+  </div>
+
+  <div class="layout-container" id="main-layout">
+    
+    <!-- TOP SECTION (Transactions) -->
+    <div class="section-top">
+      <div class="panel panel-txns">
+        <div class="panel-head">
+          <div class="panel-head-title">
+            <span class="dot"></span>เคลื่อนไหว 
+            <span style="font-size:10px;font-weight:400;color:var(--text3);text-transform:none;" id="txn-count"></span>
+          </div>
+          <!-- Icon Action Buttons -->
+          <div style="display:flex;align-items:center;gap:4px">
+            <button class="btn-icon danger" onclick="addTxn('W')" title="เพิ่มการถอน">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+            </button>
+            <button class="btn-icon green" onclick="addTxn('D')" title="เพิ่มการฝาก">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+            </button>
+            <button class="btn-icon accent" onclick="toggleRecurringModal(true)" title="สร้างรายการซ้ำ">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
+            </button>
+            <button class="btn-icon" id="btn-ms-toggle" onclick="toggleMultiselect()" title="เลือกหลายรายการ">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+            </button>
+            <button class="btn-icon" id="btn-exp-top" onclick="toggleExpand('top')" title="ขยายเต็มจอ">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Multiselect Toolbar -->
+        <div class="ms-toolbar" id="ms-toolbar">
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+            <span id="ms-count" style="color:var(--accent); font-weight:600;">เลือก 0 รายการ</span>
+            <div>
+              <button onclick="deleteSelected()" style="background:var(--danger); color:#fff; border:none; padding:4px 8px; border-radius:4px; font-family:var(--sans);">ลบ</button>
+              <button onclick="deselectAll()" style="background:transparent; border:1px solid var(--border2); padding:3px 8px; border-radius:4px; font-family:var(--sans); margin-left:4px;">ยกเลิก</button>
+            </div>
+          </div>
+          <div style="display:flex; gap:6px; margin-top:4px;">
+            <input id="ms-date" type="date" class="rec-input" style="width:110px;" title="แก้วันที่">
+            <input id="ms-amt" type="number" class="rec-input" style="flex:1;" placeholder="กรอกยอดใหม่">
+            <button onclick="applyMultiselect()" style="background:var(--accent); color:#fff; border:none; padding:4px 10px; border-radius:4px; font-family:var(--sans);">แทนที่</button>
+          </div>
+        </div>
+
+        <!-- Scrollable List -->
+        <div class="panel-txns-scroll" id="txn-list"></div>
+      </div>
+    </div>
+
+    <!-- BOTTOM SECTION (Table & Desktop Summary) -->
+    <div class="section-bottom">
+      <!-- Summary for Desktop only -->
+      <div class="desktop-summ-grid" id="summ-desktop"></div>
+
+      <div class="table-panel-wrap">
+        <div class="table-header-tools">
+          <h2><span class="dot" style="width:6px;height:6px;border-radius:50%;background:var(--accent);"></span> ตารางผลจำลอง</h2>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <button class="btn-icon" onclick="window.print()" title="พิมพ์">🖨️</button>
+            <button class="btn-icon" id="btn-exp-bottom" onclick="toggleExpand('bottom')" title="ขยายเต็มจอ">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Scrolling Table with Locked Columns -->
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th class="sticky-col col-date">ว/ด/ป</th>
+                <th class="sticky-col col-wit">ถอน (บ.)</th>
+                <th class="sticky-col col-dep">ฝาก (บ.)</th>
+                <th class="sticky-col col-int">ดอกเบี้ย (บ.)</th>
+                <th>รายการ</th>
+                <th style="text-align:right">ยอดหนี้ (บ.)</th>
+                <th>ช่วงวันคิดด/บ</th>
+                <th style="text-align:right">จำนวนวัน</th>
+                <th>สูตรคำนวณ</th>
+              </tr>
+            </thead>
+            <tbody id="tb"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Recurring Modal -->
+<div id="recurring-modal" class="modal-overlay" onclick="toggleRecurringModal(false)">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3><svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg> สร้างรายการซ้ำ</h3>
+      <button class="btn-close" onclick="toggleRecurringModal(false)">✕</button>
+    </div>
+    <div style="display:flex; flex-direction:column; gap: 12px;">
+      <div>
+        <div style="font-size:11px; color:var(--text2); margin-bottom:4px;">ประเภทรายการ</div>
+        <div style="display:flex; border: 1px solid var(--border); border-radius: 4px; overflow: hidden;">
+          <button class="rec-type-btn active-D" id="rec-btn-D" onclick="setRecType('D')">ฝากชำระ</button>
+          <button class="rec-type-btn" id="rec-btn-W" onclick="setRecType('W')">ถอนเงิน</button>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <div style="flex:1;">
+          <div style="font-size:11px; color:var(--text2); margin-bottom:4px;">จำนวนเงิน</div>
+          <input class="rec-input" id="rec-amt" type="number" value="5000" min="0" step="100">
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:11px; color:var(--text2); margin-bottom:4px;">ทำทุกวันที่</div>
+          <div class="dp-trigger" id="dp-trigger" onclick="toggleDatePicker()">เลือกวัน</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <div style="flex:1;">
+          <div style="font-size:11px; color:var(--text2); margin-bottom:4px;">เริ่มตั้งแต่เดือน</div>
+          <input class="rec-input" id="rec-from" type="month" value="2025-01">
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:11px; color:var(--text2); margin-bottom:4px;">ถึงเดือน</div>
+          <input class="rec-input" id="rec-to" type="month" value="2025-12">
+        </div>
+      </div>
+      <button class="btn-gen" onclick="generateRecurring()">สร้างรายการทั้งหมด</button>
+    </div>
+  </div>
+</div>
+
+<!-- Summary Modal (Mobile) -->
+<div id="summary-modal" class="modal-overlay" onclick="toggleSummaryModal(false)">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>📊 สรุปผลการจำลองภาระหนี้</h3>
+      <button class="btn-close" onclick="toggleSummaryModal(false)">✕</button>
+    </div>
+    <div class="summ-grid" id="summ-mobile"></div>
+    <button onclick="toggleSummaryModal(false)" style="margin-top:12px; width:100%; padding:10px; background:var(--surface2); color:var(--text); border:1px solid var(--border); border-radius:6px; font-family:var(--sans); font-weight:600; cursor:pointer;">ปิดหน้าต่าง</button>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div id="settings-modal" class="modal-overlay" onclick="saveSettingsAndClose()">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>⚙️ การตั้งค่า</h3>
+      <button class="btn-close" onclick="saveSettingsAndClose()">✕</button>
+    </div>
+    <div style="display:flex; flex-direction:column; gap: 10px;">
+      
+      <div style="font-size:11px; color:var(--text2); text-align:center;">อัตราดอกเบี้ย: MRR + ส่วนต่าง (% ต่อปี)</div>
+      <div style="display:flex; justify-content:center; align-items:center; gap:8px;">
+        <input type="number" id="mrr" value="6.845" min="0" max="20" step="0.005" oninput="simulate()" style="width:80px; padding:6px; font-family:var(--mono); text-align:center; border:1px solid var(--border); border-radius:4px;">
+        <span style="font-weight:600;">+</span>
+        <input type="number" id="spread" value="5.5" min="0" max="15" step="0.25" oninput="simulate()" style="width:80px; padding:6px; font-family:var(--mono); text-align:center; border:1px solid var(--border); border-radius:4px;">
+      </div>
+      <div class="rate-result">
+        <span class="label">รวมเป็น</span>
+        <div><span id="total-rate-display" style="font-size:20px;">12.345</span> %</div>
+      </div>
+
+      <div style="margin-top:8px; border-top:1px solid var(--border); padding-top:12px;">
+        <div style="font-size:11px; color:var(--text2); text-align:center; margin-bottom:8px;">การแสดงผลรายการ (Filter)</div>
+        <div style="display:flex; border: 1px solid var(--border); border-radius: 4px; overflow: hidden;">
+          <button class="filter-btn active" id="flt-ALL" onclick="setFilter('ALL')">ทั้งหมด</button>
+          <button class="filter-btn" id="flt-W" onclick="setFilter('W')">เฉพาะถอน</button>
+          <button class="filter-btn" id="flt-D" onclick="setFilter('D')">เฉพาะฝาก</button>
+        </div>
+      </div>
+
+      <button onclick="saveSettingsAndClose()" style="margin-top:10px; width:100%; padding:10px; background:var(--accent); color:#fff; border:none; border-radius:6px; font-family:var(--sans); font-weight:600; cursor:pointer;">ตกลงบันทึกค่า</button>
+    </div>
+  </div>
+</div>
+
+<!-- Datepicker Popover -->
+<div id="dp-popover" class="dp-popover">
+  <div style="font-size:12px; font-weight:600; color:var(--text2); margin-bottom:12px; text-align:center;">เลือกวันที่ทำรายการ</div>
+  <div class="dp-grid" id="dp-grid"></div>
+  <div class="dp-footer">
+    <button onclick="clearDatePicker()" style="background:transparent; border:none; color:var(--text3); font-size:11px; cursor:pointer;">ล้างค่า</button>
+    <button onclick="toggleDatePicker(false)" style="background:var(--accent); border:none; color:#fff; padding:6px 16px; border-radius:4px; font-size:11px; font-weight:600; cursor:pointer;">ปิด</button>
+  </div>
+</div>
+
+<!-- Firebase SDK Module -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+// === Firebase Config ===
+// ใช้ Config ที่คุณให้มา
+const firebaseConfig = {
+  apiKey: "AIzaSyBO5lPMU0LBdNOlnj-SsiiK2gWVDvegfeo",
+  authDomain: "billget-b4c17.firebaseapp.com",
+  projectId: "billget-b4c17",
+  storageBucket: "billget-b4c17.firebasestorage.app",
+  messagingSenderId: "872727285554",
+  appId: "1:872727285554:web:d3ee2323d477e18fb7112b",
+  measurementId: "G-PWM31LPM6V"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// Global State
+let txns = [];
+let nextId = 1;
+let expandedIds = new Set();
+let msMode = false;
+let selectedIds = new Set();
+let recType = 'D';
+let selectedDays = new Set([26]);
+let displayFilter = 'ALL';
+
+// Firebase State
+let authUser = null;
+let dbDocRef = null;
+let syncTimeout = null;
+let isInitialLoad = true;
+
+const LS_KEY = 'thanawat_txns_v5';
+const LS_RATE = 'thanawat_rate_v2';
+
+// Utility functions
+const mthShort=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const mthFull=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+const fd=d=>`${d.getDate()} ${mthShort[d.getMonth()]} ${String(d.getFullYear()+543).slice(-2)}`;
+const fn=n=>Math.abs(n).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});
+const dbDiff=(a,b)=>Math.round((b-a)/86400000);
+const isLeap=y=>(y%4===0&&y%100!==0)||y%400===0;
+const diy=y=>isLeap(y)?366:365;
+const toDateStr=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const fromDateStr=s=>{ let p=s.split('-'); return new Date(+p[0],+p[1]-1,+p[2]); };
+
+// === Core Logic Functions ===
+const initDefaults = () => {
+  for(let m=0;m<6;m++){ txns.push({id:nextId++,type:'W',date:toDateStr(new Date(2025,m,5)),amount:20000,note:''}); }
+  for(let m=0;m<12;m++){ txns.push({id:nextId++,type:'D',date:toDateStr(new Date(2025,m,26)),amount:5000,note:''}); }
+};
+
+// === Database Sync Logic ===
+async function saveData() {
+  // 1. Save to LocalStorage immediately
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify({txns, nextId}));
+    localStorage.setItem(LS_RATE, JSON.stringify({
+      mrr: document.getElementById('mrr').value,
+      spread: document.getElementById('spread').value,
+      filter: displayFilter
+    }));
+  } catch(e){}
+
+  // 2. Save to Firebase (Debounced)
+  clearTimeout(syncTimeout);
+  syncTimeout = setTimeout(async () => {
+    if (authUser && dbDocRef) {
+      try {
+        await setDoc(dbDocRef, {
+          txns: txns,
+          nextId: nextId,
+          settings: {
+            mrr: parseFloat(document.getElementById('mrr').value) || 0,
+            spread: parseFloat(document.getElementById('spread').value) || 0,
+            filter: displayFilter
+          },
+          updatedAt: new Date().toISOString()
+        });
+      } catch (err) {
+        console.error("Firebase write error:", err);
+      }
+    }
+  }, 1000); 
+}
+
+function loadLocalData() {
+  try {
+    let r = localStorage.getItem(LS_RATE);
+    if(r){ 
+      let pd = JSON.parse(r); 
+      if(pd.mrr !== undefined) document.getElementById('mrr').value = pd.mrr; 
+      if(pd.spread !== undefined) document.getElementById('spread').value = pd.spread; 
+      if(pd.filter !== undefined) displayFilter = pd.filter;
+    }
+    let t = localStorage.getItem(LS_KEY);
+    if(t){ 
+      let pd = JSON.parse(t); 
+      txns = pd.txns || []; 
+      nextId = pd.nextId || 1; 
+      return true; 
+    }
+  } catch(e){}
+  return false;
+}
+
+// === Authentication & Cloud Listeners ===
+const initAuth = async () => {
+  try {
+    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+      await signInWithCustomToken(auth, __initial_auth_token);
+    } else {
+      await signInAnonymously(auth);
+    }
+  } catch (error) {
+    console.error('Authentication Error:', error);
+  }
+};
+
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    authUser = user;
+    
+    // Strict Path Structure 
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'thanawat-app';
+    dbDocRef = doc(db, 'artifacts', appId, 'users', user.uid, 'thanawat_data', 'app_state');
+    
+    // Listen for cloud changes
+    onSnapshot(dbDocRef, (docSnap) => {
+      document.getElementById('cloud-indicator').classList.add('online');
+      document.getElementById('cloud-indicator').title = "เชื่อมต่อฐานข้อมูลสำเร็จ";
+      
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if(isInitialLoad) {
+          if (data.txns) {
+            txns = data.txns;
+            nextId = data.nextId || nextId;
+          }
+          if (data.settings) {
+            document.getElementById('mrr').value = data.settings.mrr;
+            document.getElementById('spread').value = data.settings.spread;
+            displayFilter = data.settings.filter || 'ALL';
+            syncFilterUI();
+          }
+          isInitialLoad = false;
+          renderLeft();
+          simulate();
+        }
+      } else {
+        isInitialLoad = false;
+        saveData();
+      }
+    }, (error) => {
+      console.error("Firestore listen error:", error);
+      document.getElementById('cloud-indicator').classList.remove('online');
+      document.getElementById('cloud-indicator').title = "ไม่สามารถอ่านฐานข้อมูลได้ (ติด Permission)";
+    });
+  }
+});
+
+
+// === UI & Interaction Logic ===
+function toggleSettingsModal(show) { document.getElementById('settings-modal').classList.toggle('show', show); }
+function toggleSummaryModal(show) { document.getElementById('summary-modal').classList.toggle('show', show); }
+function toggleRecurringModal(show) { document.getElementById('recurring-modal').classList.toggle('show', show); }
+
+function saveSettingsAndClose() {
+  saveData(); // Force save settings to both LS & Cloud
+  toggleSettingsModal(false);
+}
+
+function toggleExpand(section) {
+  const layout = document.getElementById('main-layout');
+  const btnTop = document.getElementById('btn-exp-top');
+  const btnBottom = document.getElementById('btn-exp-bottom');
+  
+  const iconExpand = `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>`;
+  const iconCollapse = `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" y1="10" x2="21" y2="3"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>`;
+
+  if (section === 'top') {
+    if (layout.classList.contains('exp-top')) {
+      layout.classList.remove('exp-top');
+      btnTop.innerHTML = iconExpand; btnTop.classList.remove('active');
+    } else {
+      layout.className = 'layout-container exp-top';
+      btnTop.innerHTML = iconCollapse; btnTop.classList.add('active');
+      btnBottom.innerHTML = iconExpand; btnBottom.classList.remove('active');
+    }
+  } else if (section === 'bottom') {
+    if (layout.classList.contains('exp-bottom')) {
+      layout.classList.remove('exp-bottom');
+      btnBottom.innerHTML = iconExpand; btnBottom.classList.remove('active');
+    } else {
+      layout.className = 'layout-container exp-bottom';
+      btnBottom.innerHTML = iconCollapse; btnBottom.classList.add('active');
+      btnTop.innerHTML = iconExpand; btnTop.classList.remove('active');
+    }
+  }
+}
+
+function syncFilterUI() {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  let fBtn = document.getElementById('flt-' + displayFilter);
+  if(fBtn) fBtn.classList.add('active');
+}
+
+function setFilter(f) {
+  displayFilter = f;
+  syncFilterUI();
+  saveData();
+  renderLeft();
+  simulate();
+}
+
+function initDatePicker() {
+  const grid = document.getElementById('dp-grid'); grid.innerHTML = '';
+  for(let i=1; i<=31; i++) {
+    let d = document.createElement('div'); d.className = `dp-day ${selectedDays.has(i) ? 'selected' : ''}`; d.textContent = i;
+    d.onclick = (e) => { e.stopPropagation(); if(selectedDays.has(i)) selectedDays.delete(i); else selectedDays.add(i); initDatePicker(); };
+    grid.appendChild(d);
+  }
+  updateDatePickerTrigger();
+}
+function updateDatePickerTrigger() {
+  const trigger = document.getElementById('dp-trigger');
+  if(selectedDays.size === 0) { trigger.textContent = "ระบุวัน"; trigger.style.color = "var(--danger)"; } 
+  else if(selectedDays.size === 1) { trigger.textContent = `วันที่ ${Array.from(selectedDays)[0]}`; trigger.style.color = ""; } 
+  else {
+    let arr = Array.from(selectedDays).sort((a,b)=>a-b);
+    if(arr.length > 2) trigger.textContent = `${arr.length} วัน`; else trigger.textContent = `วันที่ ${arr.join(',')}`;
+    trigger.style.color = "";
+  }
+}
+function toggleDatePicker(show) {
+  const pop = document.getElementById('dp-popover');
+  if(show !== undefined) pop.classList.toggle('show', show); else pop.classList.toggle('show');
+  let overlay = document.getElementById('dp-overlay');
+  if(!overlay) {
+    overlay = document.createElement('div'); overlay.id = 'dp-overlay';
+    overlay.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:99998; display:none;";
+    overlay.onclick = () => toggleDatePicker(false); document.body.appendChild(overlay);
+  }
+  overlay.style.display = pop.classList.contains('show') ? 'block' : 'none';
+}
+function clearDatePicker() { selectedDays.clear(); initDatePicker(); }
+
+function setRecType(t){
+  recType = t;
+  document.getElementById('rec-btn-D').className = 'rec-type-btn' + (t==='D'?' active-D':'');
+  document.getElementById('rec-btn-W').className = 'rec-type-btn' + (t==='W'?' active-W':'');
+}
+function generateRecurring(){
+  let amt = parseFloat(document.getElementById('rec-amt').value);
+  let fromStr = document.getElementById('rec-from').value; let toStr = document.getElementById('rec-to').value;
+  if(!amt || !fromStr || !toStr) { alert('กรุณากรอกข้อมูลให้ครบ'); return; }
+  if(selectedDays.size === 0) { alert('เลือกวันที่อย่างน้อย 1 วัน'); return; }
+  let [fy,fm] = fromStr.split('-').map(Number); let [ty,tm] = toStr.split('-').map(Number);
+  let daysArr = Array.from(selectedDays).sort((a,b)=>a-b); let added = 0; let cy=fy, cm=fm;
+  while(cy < ty || (cy===ty && cm<=tm)){
+    for(let day of daysArr) {
+      let d = new Date(cy, cm-1, day);
+      if(d.getMonth() === cm-1) { txns.push({id:nextId++, type:recType, date:toDateStr(d), amount:amt, note:'ซ้ำ'}); added++; }
+    }
+    cm++; if(cm>12){ cm=1; cy++; }
+  }
+  if(added > 0) { saveData(); renderLeft(); simulate(); toggleRecurringModal(false); }
+}
+
+function toggleMultiselect(){
+  msMode = !msMode; if(!msMode) selectedIds.clear();
+  let btn = document.getElementById('btn-ms-toggle');
+  btn.classList.toggle('active', msMode);
+  renderLeft(); updateMsToolbar();
+}
+function toggleSelect(id, e){
+  e.stopPropagation();
+  if(selectedIds.has(id)) selectedIds.delete(id); else selectedIds.add(id);
+  updateMsToolbar();
+  let el = document.querySelector(`.txn-item[data-id="${id}"]`); if(el) el.classList.toggle('selected', selectedIds.has(id));
+  let cb = document.querySelector(`.txn-item[data-id="${id}"] input[type=checkbox]`); if(cb) cb.checked = selectedIds.has(id);
+}
+function deselectAll(){
+  selectedIds.clear(); updateMsToolbar();
+  document.getElementById('ms-amt').value = ''; document.getElementById('ms-date').value = '';
+  document.querySelectorAll('.txn-item').forEach(el=>el.classList.remove('selected'));
+}
+function updateMsToolbar(){
+  let tb = document.getElementById('ms-toolbar'); let cnt = document.getElementById('ms-count');
+  tb.classList.toggle('visible', msMode && selectedIds.size > 0); cnt.textContent = `เลือก ${selectedIds.size} รายการ`;
+}
+function applyMultiselect(){
+  let newAmt = parseFloat(document.getElementById('ms-amt').value); let newDate = document.getElementById('ms-date').value;
+  if(isNaN(newAmt) && !newDate){ return; }
+  selectedIds.forEach(id=>{ let t = txns.find(x=>x.id===id); if(t) { if(!isNaN(newAmt) && newAmt > 0) t.amount = newAmt; if(newDate) t.date = newDate; } });
+  saveData(); deselectAll(); renderLeft(); simulate();
+}
+function deleteSelected(){
+  if(confirm(`ลบ ${selectedIds.size} รายการ?`)){
+    txns = txns.filter(t => !selectedIds.has(t.id)); selectedIds.forEach(id => expandedIds.delete(id));
+    saveData(); deselectAll(); renderLeft(); simulate();
+  }
+}
+
+function addTxn(type){
+  let now = new Date(); let day = type==='W' ? 5 : 26;
+  let d = new Date(now.getFullYear(), now.getMonth()+1, day);
+  let id = nextId++;
+  txns.push({id, type, date:toDateStr(d), amount: type==='W'?20000:5000, note:''});
+  expandedIds.add(id); saveData(); renderLeft(); simulate();
+  setTimeout(() => { let list = document.getElementById('txn-list'); list.scrollTop = list.scrollHeight; }, 50);
+}
+function delTxn(id, e){ e && e.stopPropagation(); txns = txns.filter(t=>t.id!==id); expandedIds.delete(id); selectedIds.delete(id); saveData(); renderLeft(); simulate(); }
+function toggleExpandTxn(id){ if(msMode) return; if(expandedIds.has(id)) expandedIds.delete(id); else expandedIds.add(id); renderLeft(); }
+function updateTxn(id, field, val){ let t = txns.find(x=>x.id===id); if(t){ t[field]=val; saveData(); renderLeft(); simulate(); } }
+
+function renderLeft(){
+  const list = document.getElementById('txn-list');
+  let sorted = [...txns].sort((a,b)=>a.date.localeCompare(b.date));
+  
+  if(displayFilter !== 'ALL') {
+    sorted = sorted.filter(t => t.type === displayFilter);
+  }
+
+  document.getElementById('txn-count').textContent = displayFilter === 'ALL' ? `(${txns.length})` : `(${sorted.length}/${txns.length})`;
+  list.innerHTML='';
+  sorted.forEach(t=>{
+    let isOpen = expandedIds.has(t.id) && !msMode; let isSelected = selectedIds.has(t.id); let d = fromDateStr(t.date);
+    let div = document.createElement('div'); div.className = `txn-item txn-${t.type}${msMode?' ms-mode':''}${isSelected?' selected':''}`; div.dataset.id = t.id;
+    let cbHtml = msMode ? `<input type="checkbox" style="accent-color:var(--accent)" ${isSelected?'checked':''} onclick="toggleSelect(${t.id}, event)">` : '';
+    let viewCols = msMode ? `grid-template-columns: 16px 26px 1fr auto 24px` : `grid-template-columns: 26px 1fr auto 24px`;
+    div.innerHTML = `
+      <div class="txn-view" style="${viewCols}" onclick="${msMode ? `toggleSelect(${t.id}, event)` : `toggleExpandTxn(${t.id})`}">
+        ${cbHtml}
+        <span class="txn-type ${t.type}">${t.type==='W'?'ถอน':'ฝาก'}</span>
+        <div class="txn-view-info">
+          <span class="txn-date-val">${fd(d)}</span>
+          ${t.note ? `<span class="txn-note-val">${t.note}</span>` : ''}
+        </div>
+        <span class="txn-amt-val">${t.type==='W'?'-':'+'}${fn(t.amount)}</span>
+        <button class="btn-del" onclick="delTxn(${t.id}, event)">✕</button>
+      </div>
+      <div class="txn-edit ${isOpen?'open':''}">
+        <div class="txn-edit-row"><span class="txn-edit-label">วันที่</span><input type="date" value="${t.date}" onchange="updateTxn(${t.id},'date',this.value)"></div>
+        <div class="txn-edit-row"><span class="txn-edit-label">จำนวน</span><input type="number" value="${t.amount}" min="0" step="100" style="text-align:right" onchange="updateTxn(${t.id},'amount',+this.value)"></div>
+        <div class="txn-edit-row"><span class="txn-edit-label">หมายเหตุ</span><input type="text" placeholder="ระบุ (ถ้ามี)" value="${t.note||''}" onchange="updateTxn(${t.id},'note',this.value)"></div>
+      </div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+function getRate(){ return ((parseFloat(document.getElementById('mrr').value)||0) + (parseFloat(document.getElementById('spread').value)||0))/100; }
+
+function simulate(){
+  let RATE = getRate();
+  let rateTotal = (RATE*100).toFixed(3);
+  document.getElementById('total-rate-display').textContent = rateTotal;
+  document.getElementById('rate-badge').textContent = rateTotal + '%';
+  
+  let evs = []; txns.forEach(t=>evs.push({date:fromDateStr(t.date), type:t.type, amt:t.amount, note:t.note}));
+  if(evs.length===0){ renderTable([],0,0,0,null,RATE); return; }
+
+  let dates = evs.map(e=>e.date.getTime()); let minD = new Date(Math.min(...dates));
+  let iy = minD.getFullYear(), im = minD.getMonth();
+  for(let i=0;i<60;i++){ evs.push({date:new Date(iy+Math.floor((im+i)/12),(im+i)%12,24), type:'I', amt:0, note:''}); }
+  const pri={I:0,W:1,D:2}; evs.sort((a,b)=>a.date-b.date||pri[a.type]-pri[b.type]);
+
+  let debt=0, lastDate=null, pendingSegs=[];
+  let rows=[], totalInt=0, totalDep=0, totalWith=0; let closedDate=null, done=false;
+
+  function closeSeg(toDate){ if(lastDate && toDate>lastDate && debt>0){ pendingSegs.push({from:lastDate, to:toDate, debt:Math.round(debt*100)/100, days:dbDiff(lastDate,toDate)+1}); } }
+
+  for(let ev of evs){
+    if(done) break; let ed = ev.date;
+    if(ev.type==='I'){
+      closeSeg(ed); lastDate=ed;
+      if(pendingSegs.length===0 && debt===0) continue;
+      let intSum=0;
+      for(let s of pendingSegs){ s.intAmt=s.debt*RATE*s.days/diy(s.from.getFullYear()); intSum+=s.intAmt; }
+      intSum=Math.round(intSum*100)/100; let segs=[...pendingSegs]; pendingSegs=[];
+      if(debt>0||segs.length>0){ debt=Math.round((debt+intSum)*100)/100; totalInt+=intSum; rows.push({date:ed,type:'I',dep:0,wit:0,bal:debt,segs,intAmt:intSum}); }
+    } else if(ev.type==='W'){
+      closeSeg(ed); debt=Math.round((debt+ev.amt)*100)/100; totalWith+=ev.amt;
+      rows.push({date:ed,type:'W',dep:0,wit:ev.amt,bal:debt,segs:[],intAmt:null,note:ev.note}); lastDate=ed;
+    } else if(ev.type==='D'){
+      if(debt<=0) continue; closeSeg(ed); let dep=ev.amt;
+      if(dep>=debt){ dep=Math.round(debt*100)/100; debt=0; totalDep+=dep; rows.push({date:ed,type:'F',dep,wit:0,bal:0,segs:[],intAmt:null,note:ev.note}); closedDate=ed; done=true; } 
+      else { debt=Math.round((debt-dep)*100)/100; totalDep+=dep; rows.push({date:ed,type:'D',dep,wit:0,bal:debt,segs:[],intAmt:null,note:ev.note}); lastDate=ed; }
+    }
+  }
+  renderTable(rows,totalInt,totalDep,totalWith,closedDate,RATE);
+}
+
+function renderTable(rows,totalInt,totalDep,totalWith,closedDate,RATE){
+  const summaryHTML = `
+  <div class="scard"><div class="lbl">ถอนรวม</div><div class="val red">${fn(totalWith)}</div></div>
+  <div class="scard"><div class="lbl">ฝากรวม</div><div class="val grn">${fn(totalDep)}</div></div>
+  <div class="scard"><div class="lbl">ดอกเบี้ยรวม</div><div class="val warn">${fn(totalInt)}</div></div>
+  <div class="scard"><div class="lbl">ปิดหนี้วันที่</div><div class="val acc" style="font-size:14px; margin-top:2px;">${closedDate?fd(closedDate):'—'}</div></div>`;
+
+  document.getElementById('summ-mobile').innerHTML = summaryHTML;
+  document.getElementById('summ-desktop').innerHTML = summaryHTML;
+
+  const tb = document.getElementById('tb'); tb.innerHTML='';
+  
+  let filteredRows = rows;
+  if (displayFilter === 'W') {
+    filteredRows = rows.filter(r => r.type === 'W');
+  } else if (displayFilter === 'D') {
+    filteredRows = rows.filter(r => r.type === 'D' || r.type === 'F'); 
+  }
+
+  if(filteredRows.length===0){ 
+    tb.innerHTML=`<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text3)">ไม่มีรายการแสดงผลตามตัวกรองที่เลือก</td></tr>`; 
+    return; 
+  }
+
+  let yearlyTotals = {};
+  rows.forEach(r => {
+    let y = r.date.getFullYear(); if(!yearlyTotals[y]) yearlyTotals[y] = { dep:0, wit:0, int:0 };
+    yearlyTotals[y].dep += (r.dep || 0); yearlyTotals[y].wit += (r.wit || 0); yearlyTotals[y].int += (r.intAmt || 0);
+  });
+
+  let rateStr=(RATE*100).toFixed(3); let prevM='', prevY='';
+
+  filteredRows.forEach(r=>{
+    let curY = r.date.getFullYear();
+    if(curY !== prevY) {
+      let trY = document.createElement('tr'); trY.className = 'row-Y';
+      trY.innerHTML = `<td colspan="9" class="sticky-col" style="left:0; z-index:10;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:11px;">🌟 ปี ${curY + 543}</span>
+          <span style="font-size:9px; opacity:0.9;">ถอน: ${fn(yearlyTotals[curY].wit)} | ฝาก: ${fn(yearlyTotals[curY].dep)} | ดอก: ${fn(yearlyTotals[curY].int)}</span>
+        </div>
+      </td>`;
+      tb.appendChild(trY); prevY = curY; prevM = '';
+    }
+
+    let ml=`${mthFull[r.date.getMonth()]} ${r.date.getFullYear()+543}`;
+    if(ml!==prevM){
+      let tr0=document.createElement('tr'); tr0.className='row-M';
+      tr0.innerHTML=`<td colspan="9" class="sticky-col" style="left:0; z-index:10; border-bottom:1px solid var(--border);">${ml}</td>`;
+      tb.appendChild(tr0); prevM=ml;
+    }
+    
+    let tr=document.createElement('tr'); tr.className=`row-${r.type}`;
+    let label={W:'ถอน',I:'ดอกเบี้ย',D:'ฝาก',F:'ปิดบัญชี ✓'}[r.type];
+    if(r.note) label+=` <span style="font-size:9px;opacity:.7">(${r.note})</span>`;
+    
+    let colDate = `<td class="sticky-col col-date mono">${fd(r.date)}</td>`;
+    let colWit  = `<td class="sticky-col col-wit mono">${r.wit>0?fn(r.wit):'-'}</td>`;
+    let colDep  = `<td class="sticky-col col-dep mono">${r.dep>0?fn(r.dep):'-'}</td>`;
+    
+    if(r.type==='I' && r.segs.length>0){
+      let rng=[],dys=[],fml=[];
+      for(let s of r.segs){
+        let dy=diy(s.from.getFullYear()); rng.push(`${fd(s.from)}–${fd(s.to)}`); dys.push(`${s.days}`);
+        fml.push(`(${fn(s.debt)}×${rateStr}%×${s.days})/${dy}`);
+      }
+      let intDisp=r.segs.length>1?`${fn(r.intAmt)}<br><small style="opacity:.7;font-family:var(--sans)">${r.segs.length} ช่วง</small>`:fn(r.intAmt);
+      let colInt = `<td class="sticky-col col-int mono">${intDisp}</td>`;
+      tr.innerHTML=`${colDate}${colWit}${colDep}${colInt}<td>${label}</td><td class="mono" style="text-align:right">${fn(r.bal)}</td><td style="font-size:10px;line-height:1.6">${rng.join('<br>')}</td><td class="mono" style="text-align:right;line-height:1.6">${dys.join('<br>')}</td><td style="font-size:10px;line-height:1.6">${fml.join('<br>')}</td>`;
+    } else {
+      let colInt = `<td class="sticky-col col-int mono">-</td>`;
+      tr.innerHTML=`${colDate}${colWit}${colDep}${colInt}<td>${label}</td><td class="mono" style="text-align:right">${fn(r.bal)}</td><td>-</td><td class="mono" style="text-align:right">-</td><td>-</td>`;
+    }
+    tb.appendChild(tr);
+  });
+}
+
+// === Expose necessary functions to window for HTML event handlers ===
+window.toggleSettingsModal = toggleSettingsModal;
+window.toggleSummaryModal = toggleSummaryModal;
+window.toggleRecurringModal = toggleRecurringModal;
+window.saveSettingsAndClose = saveSettingsAndClose;
+window.toggleExpand = toggleExpand;
+window.setFilter = setFilter;
+window.initDatePicker = initDatePicker;
+window.toggleDatePicker = toggleDatePicker;
+window.clearDatePicker = clearDatePicker;
+window.setRecType = setRecType;
+window.generateRecurring = generateRecurring;
+window.toggleMultiselect = toggleMultiselect;
+window.toggleSelect = toggleSelect;
+window.deselectAll = deselectAll;
+window.applyMultiselect = applyMultiselect;
+window.deleteSelected = deleteSelected;
+window.addTxn = addTxn;
+window.delTxn = delTxn;
+window.toggleExpandTxn = toggleExpandTxn;
+window.updateTxn = updateTxn;
+window.simulate = simulate;
+window.initDefaults = initDefaults;
+
+// Initial Bootstrap
+const startApp = async () => {
+  if(!loadLocalData()) {
+    initDefaults();
+  }
+  syncFilterUI();
+  initDatePicker(); 
+  renderLeft(); 
+  simulate();
+  await initAuth();
+};
+
+startApp();
+
+</script>
+</body>
+</html>
