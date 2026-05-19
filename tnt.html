@@ -1922,31 +1922,42 @@
             let debt = 0, lastDate = null, pendingSegs = [];
             let rows = [], totalInt = 0, totalDep = 0, totalWith = 0; let closedDate = null, done = false;
 
-            function closeSeg(toDate) { if (lastDate && toDate > lastDate && debt > 0) { pendingSegs.push({ from: lastDate, to: toDate, debt: Math.round(debt * 100) / 100, days: dbDiff(lastDate, toDate) + 1 }); } }
+            // inclusive=true → count end date (for interest day 24th)
+            // inclusive=false → exclude end date (for W/D transactions, avoids double-counting)
+            function closeSeg(toDate, inclusive) {
+                if (lastDate && toDate > lastDate && debt > 0) {
+                    let days = dbDiff(lastDate, toDate) + (inclusive ? 1 : 0);
+                    let displayTo = inclusive ? toDate : new Date(toDate.getTime() - 86400000);
+                    if (days > 0) {
+                        pendingSegs.push({ from: lastDate, to: displayTo, debt: Math.round(debt * 100) / 100, days: days });
+                    }
+                }
+            }
 
             for (let ev of evs) {
                 if (done) break; let ed = ev.date;
                 if (ev.type === 'I') {
-                    closeSeg(ed); lastDate = ed;
+                    closeSeg(ed, true); // Include the 24th in the count
+                    lastDate = new Date(ed.getTime() + 86400000); // Next segment starts day after interest (25th)
                     if (pendingSegs.length === 0 && debt === 0) continue;
                     let intSum = 0;
                     for (let s of pendingSegs) { s.intAmt = s.debt * RATE * s.days / diy(s.from.getFullYear()); intSum += s.intAmt; }
                     intSum = Math.round(intSum * 100) / 100; let segs = [...pendingSegs]; pendingSegs = [];
                     if (debt > 0 || segs.length > 0) { debt = Math.round((debt + intSum) * 100) / 100; totalInt += intSum; rows.push({ date: ed, type: 'I', dep: 0, wit: 0, bal: debt, segs, intAmt: intSum }); }
                 } else if (ev.type === 'W') {
-                    closeSeg(ed); debt = Math.round((debt + ev.amt) * 100) / 100; totalWith += ev.amt;
-                    rows.push({ date: ed, type: 'W', dep: 0, wit: ev.amt, bal: debt, segs: [], intAmt: null, note: ev.note }); lastDate = ed;
+                    closeSeg(ed, false); debt = Math.round((debt + ev.amt) * 100) / 100; totalWith += ev.amt;
+                    rows.push({ date: ed, type: 'W', dep: 0, wit: ev.amt, bal: debt, segs: [], intAmt: null, note: ev.note });
+                    lastDate = (lastDate && lastDate > ed) ? lastDate : ed; // Never go backwards
                 } else if (ev.type === 'D') {
                     if (debt <= 0) {
-                        // Still show deposit row even if no debt, so the user sees it
                         totalDep += ev.amt;
                         rows.push({ date: ed, type: 'D', dep: ev.amt, wit: 0, bal: 0, segs: [], intAmt: null, note: ev.note });
-                        lastDate = ed;
+                        lastDate = (lastDate && lastDate > ed) ? lastDate : ed;
                         continue;
                     }
-                    closeSeg(ed); let dep = ev.amt;
+                    closeSeg(ed, false); let dep = ev.amt;
                     if (dep >= debt) { dep = Math.round(debt * 100) / 100; debt = 0; totalDep += dep; rows.push({ date: ed, type: 'F', dep, wit: 0, bal: 0, segs: [], intAmt: null, note: ev.note }); closedDate = ed; done = true; }
-                    else { debt = Math.round((debt - dep) * 100) / 100; totalDep += dep; rows.push({ date: ed, type: 'D', dep, wit: 0, bal: debt, segs: [], intAmt: null, note: ev.note }); lastDate = ed; }
+                    else { debt = Math.round((debt - dep) * 100) / 100; totalDep += dep; rows.push({ date: ed, type: 'D', dep, wit: 0, bal: debt, segs: [], intAmt: null, note: ev.note }); lastDate = (lastDate && lastDate > ed) ? lastDate : ed; }
                 }
             }
             renderTable(rows, totalInt, totalDep, totalWith, closedDate, RATE);
