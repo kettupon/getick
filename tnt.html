@@ -1540,6 +1540,7 @@
         // === GLOBAL SHARED DOC PATH (no per-user isolation) ===
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'thanawat-app';
         dbDocRef = doc(db, 'thanawat_shared', appId);
+        const archivesDocRef = doc(db, 'thanawat_shared', appId + '_archives');
 
         // Utility functions
         const mthShort = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
@@ -1662,6 +1663,29 @@
             console.error("Firestore listen error:", error);
             document.getElementById('cloud-indicator').classList.remove('online');
             document.getElementById('cloud-indicator').title = "ไม่สามารถอ่านฐานข้อมูลได้ (ติด Permission)";
+        });
+
+        // === GLOBAL Real-Time Listener for Archives ===
+        let archivesData = []; // In-memory archives state
+        let skipNextArchiveSnapshot = false;
+
+        onSnapshot(archivesDocRef, (docSnap) => {
+            if (skipNextArchiveSnapshot) {
+                skipNextArchiveSnapshot = false;
+                return;
+            }
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                archivesData = data.archives || [];
+                // Cache to localStorage
+                try { localStorage.setItem(LS_ARCHIVES, JSON.stringify(archivesData)); } catch (e) { }
+                // Re-render if archive modal is open
+                if (document.getElementById('archive-modal').classList.contains('show')) {
+                    renderArchiveList();
+                }
+            }
+        }, (error) => {
+            console.error("Firestore archives listen error:", error);
         });
 
         onAuthStateChanged(auth, (user) => {
@@ -2089,13 +2113,30 @@
         const LS_ARCHIVES = 'thanawat_archives_v1';
 
         function getArchives() {
+            // Return in-memory state (synced from Firebase)
+            if (archivesData.length > 0) return archivesData;
+            // Fallback: load from localStorage
             try {
                 return JSON.parse(localStorage.getItem(LS_ARCHIVES)) || [];
             } catch (e) { return []; }
         }
 
-        function saveArchives(archives) {
+        async function saveArchivesToCloud(archives) {
+            // 1. Update in-memory
+            archivesData = archives;
+            // 2. Cache to localStorage
             try { localStorage.setItem(LS_ARCHIVES, JSON.stringify(archives)); } catch (e) { }
+            // 3. Write to Firebase
+            try {
+                skipNextArchiveSnapshot = true;
+                await setDoc(archivesDocRef, {
+                    archives: archives,
+                    updatedAt: new Date().toISOString()
+                });
+            } catch (err) {
+                skipNextArchiveSnapshot = false;
+                console.error("Firebase archives write error:", err);
+            }
         }
 
         function toggleSaveModal(show) {
@@ -2129,7 +2170,7 @@
                 txnCount: txns.length,
                 savedAt: new Date().toISOString()
             });
-            saveArchives(archives);
+            saveArchivesToCloud(archives);
             toggleSaveModal(false);
             alert(`บันทึก "${title}" สำเร็จ!`);
         }
@@ -2182,7 +2223,7 @@
             let archives = getArchives();
             if (!confirm(`ลบ "${archives[idx].title}"?`)) return;
             archives.splice(idx, 1);
-            saveArchives(archives);
+            saveArchivesToCloud(archives);
             renderArchiveList();
         }
 
