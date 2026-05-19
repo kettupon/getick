@@ -222,8 +222,44 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 0;
             min-height: 0;
+        }
+
+        /* Section Divider (Mobile only) */
+        .section-divider {
+            flex-shrink: 0;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            position: relative;
+            z-index: 20;
+        }
+
+        .section-divider .divider-line {
+            width: 40px;
+            height: 4px;
+            border-radius: 2px;
+            background: var(--border2);
+            transition: background .2s, width .2s;
+        }
+
+        .section-divider:active .divider-line {
+            background: var(--accent);
+            width: 56px;
+        }
+
+        @media (min-width: 769px) {
+            .section-divider {
+                display: none;
+            }
+            .layout-container {
+                gap: 12px;
+            }
         }
 
         .section-top {
@@ -628,6 +664,24 @@
             color: var(--text2);
             padding: 4px 10px;
         }
+
+        /* Monthly Summary Row */
+        tr.row-MS td {
+            background: #f0f7f3 !important;
+            font-weight: 600;
+            font-size: 10px;
+            color: var(--accent);
+            border-bottom: 2px solid var(--border2);
+            padding: 5px 6px;
+        }
+
+        tr.row-MS td.sticky-col {
+            background: #e8f1ec !important;
+        }
+
+        tr.row-MS td.ms-wit { color: var(--danger); }
+        tr.row-MS td.ms-dep { color: var(--green); }
+        tr.row-MS td.ms-int { color: var(--warn); }
 
         tr.row-Y td {
             background: var(--accent) !important;
@@ -1123,6 +1177,11 @@
                     <!-- Scrollable List -->
                     <div class="panel-txns-scroll" id="txn-list"></div>
                 </div>
+            </div>
+
+            <!-- Divider between sections (Mobile: double-tap to reset) -->
+            <div class="section-divider" id="section-divider">
+                <div class="divider-line"></div>
             </div>
 
             <!-- BOTTOM SECTION (Table & Desktop Summary) -->
@@ -1749,8 +1808,38 @@
 
             let rateStr = (RATE * 100).toFixed(3); let prevM = '', prevY = '';
 
-            filteredRows.forEach(r => {
+            // Pre-calculate monthly totals
+            let monthlyTotals = {};
+            rows.forEach(r => {
+                let key = `${r.date.getFullYear()}-${r.date.getMonth()}`;
+                if (!monthlyTotals[key]) monthlyTotals[key] = { dep: 0, wit: 0, int: 0 };
+                monthlyTotals[key].dep += (r.dep || 0);
+                monthlyTotals[key].wit += (r.wit || 0);
+                monthlyTotals[key].int += (r.intAmt || 0);
+            });
+
+            // Helper to insert monthly summary row
+            function insertMonthSummary(mKey, mLabel) {
+                let mt = monthlyTotals[mKey];
+                if (!mt || (mt.wit === 0 && mt.dep === 0 && mt.int === 0)) return;
+                let trMS = document.createElement('tr'); trMS.className = 'row-MS';
+                trMS.innerHTML = `<td class="sticky-col col-date mono" style="text-align:center; font-style:italic;">รวม</td><td class="sticky-col col-wit mono ms-wit">${mt.wit > 0 ? fn(mt.wit) : '-'}</td><td class="sticky-col col-dep mono ms-dep">${mt.dep > 0 ? fn(mt.dep) : '-'}</td><td class="sticky-col col-int mono ms-int">${mt.int > 0 ? fn(mt.int) : '-'}</td><td style="font-style:italic; color:var(--text3);">สรุป${mLabel}</td><td colspan="4"></td>`;
+                tb.appendChild(trMS);
+            }
+
+            let curMonthKey = '';
+            let curMonthLabel = '';
+
+            filteredRows.forEach((r, idx) => {
                 let curY = r.date.getFullYear();
+                let newMl = `${mthFull[r.date.getMonth()]} ${r.date.getFullYear() + 543}`;
+                let newMonthKey = `${curY}-${r.date.getMonth()}`;
+
+                // When month changes, insert summary for the previous month first
+                if (newMl !== prevM && prevM !== '') {
+                    insertMonthSummary(curMonthKey, curMonthLabel);
+                }
+
                 if (curY !== prevY) {
                     let trY = document.createElement('tr'); trY.className = 'row-Y';
                     trY.innerHTML = `<td colspan="9" class="sticky-col" style="left:0; z-index:10;">
@@ -1762,12 +1851,14 @@
                     tb.appendChild(trY); prevY = curY; prevM = '';
                 }
 
-                let ml = `${mthFull[r.date.getMonth()]} ${r.date.getFullYear() + 543}`;
-                if (ml !== prevM) {
+                if (newMl !== prevM) {
                     let tr0 = document.createElement('tr'); tr0.className = 'row-M';
-                    tr0.innerHTML = `<td colspan="9" class="sticky-col" style="left:0; z-index:10; border-bottom:1px solid var(--border);">${ml}</td>`;
-                    tb.appendChild(tr0); prevM = ml;
+                    tr0.innerHTML = `<td colspan="9" class="sticky-col" style="left:0; z-index:10; border-bottom:1px solid var(--border);">${newMl}</td>`;
+                    tb.appendChild(tr0); prevM = newMl;
                 }
+
+                curMonthKey = newMonthKey;
+                curMonthLabel = mthShort[r.date.getMonth()];
 
                 let tr = document.createElement('tr'); tr.className = `row-${r.type}`;
                 let label = { W: 'ถอน', I: 'ดอกเบี้ย', D: 'ฝาก', F: 'ปิดบัญชี ✓' }[r.type];
@@ -1791,6 +1882,11 @@
                     tr.innerHTML = `${colDate}${colWit}${colDep}${colInt}<td>${label}</td><td class="mono" style="text-align:right">${fn(r.bal)}</td><td>-</td><td class="mono" style="text-align:right">-</td><td>-</td>`;
                 }
                 tb.appendChild(tr);
+
+                // Insert summary for the LAST month at the end
+                if (idx === filteredRows.length - 1) {
+                    insertMonthSummary(curMonthKey, curMonthLabel);
+                }
             });
         }
 
@@ -1817,6 +1913,39 @@
         window.updateTxn = updateTxn;
         window.simulate = simulate;
         window.initDefaults = initDefaults;
+
+        // === Double-tap divider to reset layout (Mobile) ===
+        (function() {
+            let lastTap = 0;
+            const divider = document.getElementById('section-divider');
+            if (divider) {
+                divider.addEventListener('touchend', function(e) {
+                    let now = Date.now();
+                    if (now - lastTap < 350) {
+                        e.preventDefault();
+                        // Reset to default layout
+                        const layout = document.getElementById('main-layout');
+                        layout.className = 'layout-container';
+                        const btnTop = document.getElementById('btn-exp-top');
+                        const btnBottom = document.getElementById('btn-exp-bottom');
+                        const iconExpand = `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>`;
+                        if (btnTop) { btnTop.innerHTML = iconExpand; btnTop.classList.remove('active'); }
+                        if (btnBottom) { btnBottom.innerHTML = iconExpand; btnBottom.classList.remove('active'); }
+                    }
+                    lastTap = now;
+                });
+                // Also support mouse double-click for testing
+                divider.addEventListener('dblclick', function() {
+                    const layout = document.getElementById('main-layout');
+                    layout.className = 'layout-container';
+                    const btnTop = document.getElementById('btn-exp-top');
+                    const btnBottom = document.getElementById('btn-exp-bottom');
+                    const iconExpand = `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>`;
+                    if (btnTop) { btnTop.innerHTML = iconExpand; btnTop.classList.remove('active'); }
+                    if (btnBottom) { btnBottom.innerHTML = iconExpand; btnBottom.classList.remove('active'); }
+                });
+            }
+        })();
 
         // Initial Bootstrap
         const startApp = async () => {
