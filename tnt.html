@@ -433,6 +433,21 @@
       background: var(--accent);
     }
 
+    @keyframes pulse-highlight {
+      0% {
+        background-color: var(--accent-light) !important;
+        box-shadow: 0 0 8px var(--accent);
+      }
+      100% {
+        /* naturally return to default */
+      }
+    }
+
+    .highlight-pulse,
+    .highlight-pulse td {
+      animation: pulse-highlight 2.0s ease-out;
+    }
+
     /* Transactions Panel Tools */
     .panel-txns-scroll {
       flex: 1;
@@ -1412,6 +1427,16 @@
                   <polyline points="7 3 7 8 15 8"></polyline>
                 </svg>
               </button>
+              <button class="btn-icon" onclick="scrollToCurrentDateTxn()" title="เลื่อนไปวันที่ใกล้เคียงวันปัจจุบัน">
+                <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <line x1="12" y1="1" x2="12" y2="3"></line>
+                  <line x1="12" y1="21" x2="12" y2="23"></line>
+                  <line x1="1" y1="12" x2="3" y2="12"></line>
+                  <line x1="21" y1="12" x2="23" y2="12"></line>
+                </svg>
+              </button>
               <button class="btn-icon" id="btn-ms-toggle" onclick="toggleMultiselect()" title="เลือกหลายรายการ">
                 <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"
                   stroke-linecap="round" stroke-linejoin="round">
@@ -1475,6 +1500,16 @@
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                   <polyline points="7 10 12 15 17 10"></polyline>
                   <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+              </button>
+              <button class="btn-icon" onclick="scrollToCurrentDateTable()" title="เลื่อนไปวันที่ใกล้เคียงวันปัจจุบัน">
+                <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <line x1="12" y1="1" x2="12" y2="3"></line>
+                  <line x1="12" y1="21" x2="12" y2="23"></line>
+                  <line x1="1" y1="12" x2="3" y2="12"></line>
+                  <line x1="21" y1="12" x2="23" y2="12"></line>
                 </svg>
               </button>
               <button class="btn-icon" onclick="window.print()" title="พิมพ์">🖨️</button>
@@ -2333,6 +2368,7 @@
         curMonthLabel = mthShort[r.date.getMonth()];
 
         let tr = document.createElement('tr'); tr.className = `row-${r.type}`;
+        tr.dataset.date = toDateStr(r.date);
         let label = { W: 'ถอน', I: 'ดอกเบี้ย', D: 'ฝาก', F: 'ปิดบัญชี ✓' }[r.type];
         if (r.note) label += ` <span style="font-size:9px;opacity:.7">(${r.note})</span>`;
 
@@ -2395,6 +2431,68 @@
     window.updateAddTxnPreview = updateAddTxnPreview;
     window.confirmAddTxn = confirmAddTxn;
     window.exportCSV = exportCSV;
+
+    function scrollToCurrentDateTxn() {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const items = document.querySelectorAll('.txn-item');
+      if (items.length === 0) return;
+
+      let closestEl = null;
+      let minDiff = Infinity;
+
+      items.forEach(el => {
+        const id = parseInt(el.dataset.id);
+        const t = txns.find(x => x.id === id);
+        if (t) {
+          const d = fromDateStr(t.date);
+          d.setHours(0, 0, 0, 0);
+          const diff = Math.abs(d - today);
+          if (diff < minDiff) {
+            minDiff = diff;
+            closestEl = el;
+          }
+        }
+      });
+
+      if (closestEl) {
+        closestEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        closestEl.classList.add('highlight-pulse');
+        setTimeout(() => closestEl.classList.remove('highlight-pulse'), 2000);
+      }
+    }
+
+    function scrollToCurrentDateTable() {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const rows = document.querySelectorAll('#tb tr[data-date]');
+      if (rows.length === 0) return;
+
+      let closestEl = null;
+      let minDiff = Infinity;
+
+      rows.forEach(row => {
+        const dateStr = row.dataset.date;
+        if (dateStr) {
+          const d = fromDateStr(dateStr);
+          d.setHours(0, 0, 0, 0);
+          const diff = Math.abs(d - today);
+          if (diff < minDiff) {
+            minDiff = diff;
+            closestEl = row;
+          }
+        }
+      });
+
+      if (closestEl) {
+        closestEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        closestEl.classList.add('highlight-pulse');
+        setTimeout(() => closestEl.classList.remove('highlight-pulse'), 2000);
+      }
+    }
+
+    window.scrollToCurrentDateTxn = scrollToCurrentDateTxn;
+    window.scrollToCurrentDateTable = scrollToCurrentDateTable;
 
     // === Export to CSV ===
     function exportCSV() {
