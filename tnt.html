@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="th">
 
@@ -1172,6 +1173,11 @@
       background: var(--accent-light);
     }
 
+    .archive-item.active-archive-item {
+      border-color: var(--accent);
+      background: var(--accent-light);
+    }
+
     .archive-item .arc-info {
       flex: 1;
       min-width: 0;
@@ -1368,8 +1374,14 @@
     <!-- Header -->
     <div class="header">
       <div>
-        <h1>กรุงไทยธนวัฏ</h1>
-        <span class="sub">จำลองภาระหนี้และดอกเบี้ย <span id="cloud-indicator" class="cloud-status connecting"
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <h1 style="margin: 0;">กรุงไทยธนวัฏ</h1>
+          <span id="active-archive-badge" style="display: none; align-items: center; gap: 4px; font-size: 11px; padding: 2px 8px; border-radius: 9999px; background: var(--accent-light); color: var(--accent); border: 1px solid #cce5d7; font-weight: 600; line-height: 1.2;">
+            <span style="font-size: 10px;">📁</span>
+            <span id="active-archive-name"></span>
+          </span>
+        </div>
+        <span class="sub" style="margin-top: 4px;">จำลองภาระหนี้และดอกเบี้ย <span id="cloud-indicator" class="cloud-status connecting"
             title="กำลังเชื่อมต่อฐานข้อมูล..."></span></span>
       </div>
       <div class="header-right">
@@ -1765,6 +1777,20 @@
     let recType = 'D';
     let selectedDays = new Set([26]);
     let displayFilter = 'ALL';
+    let activeArchiveTitle = '';
+
+    function updateArchiveTitleDisplay() {
+      const badge = document.getElementById('active-archive-badge');
+      const nameEl = document.getElementById('active-archive-name');
+      if (badge && nameEl) {
+        if (activeArchiveTitle) {
+          nameEl.textContent = activeArchiveTitle;
+          badge.style.display = 'inline-flex';
+        } else {
+          badge.style.display = 'none';
+        }
+      }
+    }
 
     // Firebase State
     let authUser = null;
@@ -1805,7 +1831,8 @@
         localStorage.setItem(LS_RATE, JSON.stringify({
           mrr: document.getElementById('mrr').value,
           spread: document.getElementById('spread').value,
-          filter: displayFilter
+          filter: displayFilter,
+          activeArchiveTitle: activeArchiveTitle
         }));
       } catch (e) { }
 
@@ -1821,8 +1848,10 @@
               settings: {
                 mrr: parseFloat(document.getElementById('mrr').value) || 0,
                 spread: parseFloat(document.getElementById('spread').value) || 0,
-                filter: displayFilter
+                filter: displayFilter,
+                activeArchiveTitle: activeArchiveTitle
               },
+              activeArchiveTitle: activeArchiveTitle,
               updatedAt: new Date().toISOString()
             });
           } catch (err) {
@@ -1841,12 +1870,16 @@
           if (pd.mrr !== undefined) document.getElementById('mrr').value = pd.mrr;
           if (pd.spread !== undefined) document.getElementById('spread').value = pd.spread;
           if (pd.filter !== undefined) displayFilter = pd.filter;
+          if (pd.activeArchiveTitle !== undefined) {
+            activeArchiveTitle = pd.activeArchiveTitle;
+          }
         }
         let t = localStorage.getItem(LS_KEY);
         if (t) {
           let pd = JSON.parse(t);
           txns = pd.txns || [];
           nextId = pd.nextId || 1;
+          updateArchiveTitleDisplay();
           return true;
         }
       } catch (e) { }
@@ -1891,9 +1924,25 @@
           displayFilter = data.settings.filter || 'ALL';
           syncFilterUI();
         }
+
+        // Load active archive title from database if it exists
+        if ('activeArchiveTitle' in data) {
+          activeArchiveTitle = data.activeArchiveTitle || "";
+          updateArchiveTitleDisplay();
+        } else if (data.settings && 'activeArchiveTitle' in data.settings) {
+          activeArchiveTitle = data.settings.activeArchiveTitle || "";
+          updateArchiveTitleDisplay();
+        }
+
         // Update local storage with cloud data
         try {
           localStorage.setItem(LS_KEY, JSON.stringify({ txns, nextId }));
+          localStorage.setItem(LS_RATE, JSON.stringify({
+            mrr: document.getElementById('mrr').value,
+            spread: document.getElementById('spread').value,
+            filter: displayFilter,
+            activeArchiveTitle: activeArchiveTitle
+          }));
         } catch (e) { }
         renderLeft();
         simulate();
@@ -1918,6 +1967,13 @@
         archivesData = data.archives || [];
         // Cache to localStorage
         try { localStorage.setItem(LS_ARCHIVES, JSON.stringify(archivesData)); } catch (e) { }
+
+        // If there's no active archive title set yet, default to the latest loaded archive clicked/saved
+        if (!activeArchiveTitle && archivesData.length > 0) {
+          activeArchiveTitle = archivesData[0].title;
+          updateArchiveTitleDisplay();
+        }
+
         // Re-render if archive modal is open
         if (document.getElementById('archive-modal').classList.contains('show')) {
           renderArchiveList();
@@ -2529,6 +2585,8 @@
       nextId = 1;
       expandedIds.clear();
       selectedIds.clear();
+      activeArchiveTitle = "";
+      updateArchiveTitleDisplay();
       saveData();
       renderLeft();
       simulate();
@@ -2596,7 +2654,10 @@
         txnCount: txns.length,
         savedAt: new Date().toISOString()
       });
+      activeArchiveTitle = title;
+      updateArchiveTitleDisplay();
       saveArchivesToCloud(archives);
+      saveData();
       toggleSaveModal(false);
       alert(`บันทึก "${title}" สำเร็จ!`);
     }
@@ -2613,11 +2674,12 @@
         let d = new Date(arc.savedAt);
         let dateStr = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear() + 543} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
         let div = document.createElement('div');
-        div.className = 'archive-item';
+        const isActive = arc.title === activeArchiveTitle;
+        div.className = `archive-item${isActive ? ' active-archive-item' : ''}`;
         div.innerHTML = `
-                    <div style="font-size:16px;">📄</div>
+                    <div style="font-size:16px;">${isActive ? '⭐' : '📄'}</div>
                     <div class="arc-info" onclick="loadArchive(${idx})">
-                        <div class="arc-title">${arc.title}</div>
+                        <div class="arc-title" style="${isActive ? 'font-weight:bold;color:var(--accent);' : ''}">${arc.title} ${isActive ? '<span style="font-size:10px;font-weight:normal;padding:1px 4px;background:var(--accent-light);color:var(--accent);border-radius:3px;margin-left:4px;">ใช้งานอยู่</span>' : ''}</div>
                         <div class="arc-meta">${arc.txnCount || '?'} รายการ · ${dateStr}</div>
                     </div>
                     <button class="arc-del" onclick="event.stopPropagation(); deleteArchive(${idx})" title="ลบ">✕</button>
@@ -2639,6 +2701,8 @@
         displayFilter = arc.settings.filter || 'ALL';
         syncFilterUI();
       }
+      activeArchiveTitle = arc.title;
+      updateArchiveTitleDisplay();
       saveData();
       renderLeft();
       simulate();
@@ -2647,8 +2711,14 @@
 
     function deleteArchive(idx) {
       let archives = getArchives();
-      if (!confirm(`ลบ "${archives[idx].title}"?`)) return;
+      const titleToDelete = archives[idx].title;
+      if (!confirm(`ลบ "${titleToDelete}"?`)) return;
       archives.splice(idx, 1);
+      if (activeArchiveTitle === titleToDelete) {
+        activeArchiveTitle = "";
+        updateArchiveTitleDisplay();
+        saveData();
+      }
       saveArchivesToCloud(archives);
       renderArchiveList();
     }
