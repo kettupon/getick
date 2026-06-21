@@ -1365,6 +1365,30 @@
     .add-txn-modal .btn-confirm-D:hover {
       opacity: 0.9;
     }
+
+    /* Skeleton Loading Styles */
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .skeleton {
+      background: linear-gradient(90deg, var(--surface2) 25%, var(--border) 50%, var(--surface2) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite linear;
+      border-radius: 4px;
+      height: 12px;
+      width: 100%;
+    }
+    .skeleton-txn {
+      height: 44px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: linear-gradient(90deg, var(--surface2) 25%, var(--border) 50%, var(--surface2) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite linear;
+      margin-bottom: 6px;
+      opacity: 0.8;
+    }
   </style>
 </head>
 
@@ -1695,6 +1719,16 @@
         <button class="btn-close" onclick="toggleArchiveModal(false)">✕</button>
       </div>
       <div class="archive-list" id="archive-list"></div>
+
+      <!-- Create New Plan Section -->
+      <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border);">
+        <div style="font-size:11px; color:var(--text2); margin-bottom:6px; font-weight:600;">➕ สร้างแผนการจำลองใหม่ (Blank Plan)</div>
+        <div style="display:flex; gap:6px;">
+          <input class="rec-input" id="new-plan-title" type="text" placeholder="ระบุชื่อแผนใหม่ (เช่น แผน B)" style="font-family:var(--sans); font-size:12px; flex:1; width:auto; height:30px;">
+          <button onclick="createNewPlan()" style="background:var(--accent); color:#fff; border:none; padding:0 12px; border-radius:4px; font-family:var(--sans); font-size:12px; font-weight:600; cursor:pointer; height:30px; white-space:nowrap;">สร้างแผน</button>
+        </div>
+      </div>
+
       <button onclick="toggleArchiveModal(false)"
         style="margin-top:12px; width:100%; padding:10px; background:var(--surface2); color:var(--text); border:1px solid var(--border); border-radius:6px; font-family:var(--sans); font-weight:600; cursor:pointer;">ปิดหน้าต่าง</button>
     </div>
@@ -1825,6 +1859,28 @@
 
     // === Database Sync Logic ===
     async function saveData() {
+      // If working on an active archive plan, update the archive in memory and localStorage immediately
+      if (activeArchiveTitle) {
+        let archives = getArchives();
+        let idx = archives.findIndex(arc => arc.title === activeArchiveTitle);
+        if (idx !== -1) {
+          archives[idx].txns = JSON.parse(JSON.stringify(txns));
+          archives[idx].nextId = nextId;
+          archives[idx].settings = {
+            mrr: parseFloat(document.getElementById('mrr').value) || 0,
+            spread: parseFloat(document.getElementById('spread').value) || 0,
+            filter: displayFilter
+          };
+          archives[idx].txnCount = txns.length;
+          archives[idx].savedAt = new Date().toISOString();
+
+          try {
+            localStorage.setItem(LS_ARCHIVES, JSON.stringify(archives));
+            archivesData = archives;
+          } catch (e) { }
+        }
+      }
+
       // 1. Save to LocalStorage immediately
       try {
         localStorage.setItem(LS_KEY, JSON.stringify({ txns, nextId }));
@@ -1854,8 +1910,33 @@
               activeArchiveTitle: activeArchiveTitle,
               updatedAt: new Date().toISOString()
             });
+
+            // Also write updated archives to Firebase if there is an active archive title
+            if (activeArchiveTitle) {
+              let archives = getArchives();
+              let idx = archives.findIndex(arc => arc.title === activeArchiveTitle);
+              if (idx !== -1) {
+                // Ensure data is up-to-date
+                archives[idx].txns = JSON.parse(JSON.stringify(txns));
+                archives[idx].nextId = nextId;
+                archives[idx].settings = {
+                  mrr: parseFloat(document.getElementById('mrr').value) || 0,
+                  spread: parseFloat(document.getElementById('spread').value) || 0,
+                  filter: displayFilter
+                };
+                archives[idx].txnCount = txns.length;
+                archives[idx].savedAt = new Date().toISOString();
+
+                skipNextArchiveSnapshot = true;
+                await setDoc(archivesDocRef, {
+                  archives: archives,
+                  updatedAt: new Date().toISOString()
+                });
+              }
+            }
           } catch (err) {
             skipNextSnapshot = false;
+            skipNextArchiveSnapshot = false;
             console.error("Firebase write error:", err);
           }
         }
@@ -1946,11 +2027,31 @@
         } catch (e) { }
         renderLeft();
         simulate();
+      } else {
+        // Document does not exist in Firestore. Clear skeletons if we are in initial loading state.
+        const txnList = document.getElementById('txn-list');
+        const hasSkeletons = txnList && txnList.querySelector('.skeleton-txn');
+        if (hasSkeletons || (txns.length === 0 && !localStorage.getItem(LS_KEY))) {
+          txns = [];
+          nextId = 1;
+          activeArchiveTitle = "";
+          updateArchiveTitleDisplay();
+          renderLeft();
+          simulate();
+        }
       }
     }, (error) => {
       console.error("Firestore listen error:", error);
       document.getElementById('cloud-indicator').classList.remove('connecting', 'online');
       document.getElementById('cloud-indicator').title = "ไม่สามารถอ่านฐานข้อมูลได้ (ติด Permission)";
+      // Clear skeletons if we are blocked / offline to avoid infinite hang
+      const txnList = document.getElementById('txn-list');
+      if (txnList && txnList.querySelector('.skeleton-txn')) {
+        txns = [];
+        nextId = 1;
+        renderLeft();
+        simulate();
+      }
     });
 
     // === GLOBAL Real-Time Listener for Archives ===
@@ -2482,6 +2583,7 @@
     window.performSave = performSave;
     window.loadArchive = loadArchive;
     window.deleteArchive = deleteArchive;
+    window.createNewPlan = createNewPlan;
     window.clearAllTxns = clearAllTxns;
     window.toggleAddTxnModal = toggleAddTxnModal;
     window.updateAddTxnPreview = updateAddTxnPreview;
@@ -2723,6 +2825,68 @@
       renderArchiveList();
     }
 
+    async function createNewPlan() {
+      const titleInput = document.getElementById('new-plan-title');
+      const title = titleInput.value ? titleInput.value.trim() : "";
+      if (!title) {
+        alert('กรุณากรอกชื่อแผนใหม่');
+        return;
+      }
+
+      let archives = getArchives();
+      if (archives.some(arc => arc.title === title)) {
+        alert('มีแผนชื่อนี้อยู่ในคลังบันทึกแล้ว กรุณาใช้ชื่ออื่น');
+        return;
+      }
+
+      // Initialize blank plain data
+      txns = [];
+      nextId = 1;
+      activeArchiveTitle = title;
+
+      // Default Settings
+      const defaultMrr = 6.845;
+      const defaultSpread = 5.5;
+      document.getElementById('mrr').value = defaultMrr;
+      document.getElementById('spread').value = defaultSpread;
+      displayFilter = 'ALL';
+      syncFilterUI();
+
+      // Add to archive list
+      archives.unshift({
+        id: Date.now(),
+        title: title,
+        txns: [],
+        nextId: 1,
+        settings: {
+          mrr: defaultMrr,
+          spread: defaultSpread,
+          filter: displayFilter
+        },
+        txnCount: 0,
+        savedAt: new Date().toISOString()
+      });
+
+      updateArchiveTitleDisplay();
+
+      // Save archive to cloud/local storage
+      await saveArchivesToCloud(archives);
+
+      // Save current plan data to cloud/local storage
+      await saveData();
+
+      // Render and simulate
+      renderLeft();
+      simulate();
+
+      // Reset input
+      titleInput.value = '';
+
+      // Refresh archive list
+      renderArchiveList();
+      alert(`สร้างแผนใหม่ "${title}" สำเร็จ!`);
+    }
+
     // === Double-tap divider to reset layout (Mobile) ===
     (function () {
       let lastTap = 0;
@@ -2756,15 +2920,43 @@
       }
     })();
 
+    function showSkeletons() {
+      const list = document.getElementById('txn-list');
+      if (list) {
+        list.innerHTML = `
+          <div class="skeleton-txn"></div>
+          <div class="skeleton-txn" style="opacity: 0.7;"></div>
+          <div class="skeleton-txn" style="opacity: 0.4;"></div>
+        `;
+      }
+      const tb = document.getElementById('tb');
+      if (tb) {
+        tb.innerHTML = `
+          <tr>
+            <td colspan="9" style="padding: 24px; text-align: center;">
+              <div style="display: flex; flex-direction: column; gap: 10px; align-items: center;">
+                <div class="skeleton" style="width: 80%;"></div>
+                <div class="skeleton" style="width: 60%;"></div>
+                <div class="skeleton" style="width: 70%;"></div>
+                <div class="skeleton" style="width: 50%;"></div>
+              </div>
+            </td>
+          </tr>
+        `;
+      }
+    }
+
     // Initial Bootstrap
     const startApp = async () => {
-      if (!loadLocalData()) {
-        initDefaults();
+      const hasLocal = loadLocalData();
+      if (!hasLocal) {
+        showSkeletons();
+      } else {
+        renderLeft();
+        simulate();
       }
       syncFilterUI();
       initDatePicker();
-      renderLeft();
-      simulate();
       await initAuth();
     };
 
