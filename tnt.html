@@ -1683,6 +1683,16 @@
           </div>
         </div>
 
+        <div style="margin-top:8px; border-top:1px solid var(--border); padding-top:12px;">
+          <div style="font-size:11px; color:var(--text2); text-align:center; margin-bottom:8px; font-weight:600;">🔍 ค้นหาและเลือกรายการแบบกลุ่ม (Detect Match)</div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <input class="rec-input" id="match-note" type="text" placeholder="ระบุหมายเหตุที่ต้องการค้นหา" style="font-family:var(--sans); font-size:11px;">
+            <input class="rec-input" id="match-amount" type="number" placeholder="ระบุจำนวนเงินที่ต้องการค้นหา" style="font-size:11px;">
+            <button onclick="detectAndSelectMatches()"
+              style="width:100%; padding:8px; background:var(--accent-light); color:var(--accent); border:1px solid #b6d9c5; border-radius:4px; font-family:var(--sans); font-size:11px; font-weight:600; cursor:pointer;">ค้นหาและเลือกรายการ</button>
+          </div>
+        </div>
+
         <button onclick="saveSettingsAndClose()"
           style="margin-top:10px; width:100%; padding:10px; background:var(--accent); color:#fff; border:none; border-radius:6px; font-family:var(--sans); font-weight:600; cursor:pointer;">ตกลงบันทึกค่า</button>
 
@@ -2284,6 +2294,60 @@
       renderLeft();
       updateMsToolbar();
     }
+    function detectAndSelectMatches() {
+      const noteInput = document.getElementById('match-note');
+      const amountInput = document.getElementById('match-amount');
+
+      const queryNote = noteInput ? noteInput.value.trim() : "";
+      const queryAmtVal = amountInput ? amountInput.value.trim() : "";
+
+      if (!queryNote && !queryAmtVal) {
+        alert('กรุณากรอกหมายเหตุหรือจำนวนเงินเพื่อค้นหา');
+        return;
+      }
+
+      let matchedCount = 0;
+      let targetAmt = queryAmtVal !== "" ? parseFloat(queryAmtVal) : null;
+
+      txns.forEach(t => {
+        let noteMatch = true;
+        let amtMatch = true;
+
+        if (queryNote) {
+          noteMatch = t.note ? t.note.toLowerCase().includes(queryNote.toLowerCase()) : false;
+        }
+        if (targetAmt !== null) {
+          amtMatch = t.amount === targetAmt;
+        }
+
+        if (noteMatch && amtMatch) {
+          selectedIds.add(t.id);
+          matchedCount++;
+        }
+      });
+
+      if (matchedCount > 0) {
+        // Automatically turn on multiselect mode
+        msMode = true;
+        let btn = document.getElementById('btn-ms-toggle');
+        if (btn) btn.classList.add('active');
+
+        // Close settings modal
+        toggleSettingsModal(false);
+
+        // Clear search inputs
+        if (noteInput) noteInput.value = '';
+        if (amountInput) amountInput.value = '';
+
+        // Refresh UI
+        renderLeft();
+        updateMsToolbar();
+
+        alert(`พบรายการที่ตรงกันและเลือกทั้งหมด ${matchedCount} รายการ!`);
+      } else {
+        alert('ไม่พบรายการที่ตรงกับเงื่อนไขการค้นหา');
+      }
+    }
     function updateMsToolbar() {
       let tb = document.getElementById('ms-toolbar'); let cnt = document.getElementById('ms-count');
       tb.classList.toggle('visible', msMode && selectedIds.size > 0); cnt.textContent = `เลือก ${selectedIds.size} รายการ`;
@@ -2638,6 +2702,7 @@
     window.toggleSelect = toggleSelect;
     window.deselectAll = deselectAll;
     window.selectAllVisible = selectAllVisible;
+    window.detectAndSelectMatches = detectAndSelectMatches;
     window.applyMultiselect = applyMultiselect;
     window.deleteSelected = deleteSelected;
     window.addTxn = addTxn;
