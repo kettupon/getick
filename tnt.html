@@ -1498,9 +1498,11 @@
               <span id="ms-count" style="color:var(--accent); font-weight:600;">เลือก 0 รายการ</span>
               <div>
                 <button onclick="deleteSelected()"
-                  style="background:var(--danger); color:#fff; border:none; padding:4px 8px; border-radius:4px; font-family:var(--sans);">ลบ</button>
+                  style="background:var(--danger); color:#fff; border:none; padding:4px 8px; border-radius:4px; font-family:var(--sans); cursor:pointer;">ลบ</button>
+                <button onclick="selectAllVisible()"
+                  style="background:var(--accent-light); color:var(--accent); border:1px solid #b6d9c5; padding:3px 8px; border-radius:4px; font-family:var(--sans); margin-left:4px; cursor:pointer;">เลือกทั้งหมด</button>
                 <button onclick="deselectAll()"
-                  style="background:transparent; border:1px solid var(--border2); padding:3px 8px; border-radius:4px; font-family:var(--sans); margin-left:4px;">ยกเลิก</button>
+                  style="background:transparent; border:1px solid var(--border2); padding:3px 8px; border-radius:4px; font-family:var(--sans); margin-left:4px; cursor:pointer;">ยกเลิก</button>
               </div>
             </div>
             <div style="display:flex; gap:6px; margin-top:4px;">
@@ -1625,6 +1627,10 @@
             <div style="font-size:11px; color:var(--text2); margin-bottom:4px;">ถึงเดือน</div>
             <input class="rec-input" id="rec-to" type="month" value="2025-12">
           </div>
+        </div>
+        <div>
+          <div style="font-size:11px; color:var(--text2); margin-bottom:4px;">หมายเหตุ (ไม่ระบุจะถูกตั้งเป็น "ซ้ำ")</div>
+          <input class="rec-input" id="rec-note" type="text" placeholder="ระบุหมายเหตุ เช่น ดอกเบี้ย, เงินเดือน" style="font-family:var(--sans);">
         </div>
         <button class="btn-gen" onclick="generateRecurring()">สร้างรายการทั้งหมด</button>
       </div>
@@ -1808,6 +1814,7 @@
     let expandedIds = new Set();
     let msMode = false;
     let selectedIds = new Set();
+    let lastSelectedId = null;
     let recType = 'D';
     let selectedDays = new Set([26]);
     let displayFilter = 'ALL';
@@ -2095,7 +2102,13 @@
     // === UI & Interaction Logic ===
     function toggleSettingsModal(show) { document.getElementById('settings-modal').classList.toggle('show', show); }
     function toggleSummaryModal(show) { document.getElementById('summary-modal').classList.toggle('show', show); }
-    function toggleRecurringModal(show) { document.getElementById('recurring-modal').classList.toggle('show', show); }
+    function toggleRecurringModal(show) {
+      document.getElementById('recurring-modal').classList.toggle('show', show);
+      if (show) {
+        const noteEl = document.getElementById('rec-note');
+        if (noteEl) noteEl.value = '';
+      }
+    }
 
     function saveSettingsAndClose() {
       saveData(); // Force save settings to both LS & Cloud
@@ -2187,12 +2200,16 @@
       let fromStr = document.getElementById('rec-from').value; let toStr = document.getElementById('rec-to').value;
       if (!amt || !fromStr || !toStr) { alert('กรุณากรอกข้อมูลให้ครบ'); return; }
       if (selectedDays.size === 0) { alert('เลือกวันที่อย่างน้อย 1 วัน'); return; }
+      
+      const noteInput = document.getElementById('rec-note');
+      const noteVal = noteInput && noteInput.value.trim() ? noteInput.value.trim() : 'ซ้ำ';
+
       let [fy, fm] = fromStr.split('-').map(Number); let [ty, tm] = toStr.split('-').map(Number);
       let daysArr = Array.from(selectedDays).sort((a, b) => a - b); let added = 0; let cy = fy, cm = fm;
       while (cy < ty || (cy === ty && cm <= tm)) {
         for (let day of daysArr) {
           let d = new Date(cy, cm - 1, day);
-          if (d.getMonth() === cm - 1) { txns.push({ id: nextId++, type: recType, date: toDateStr(d), amount: amt, note: 'ซ้ำ' }); added++; }
+          if (d.getMonth() === cm - 1) { txns.push({ id: nextId++, type: recType, date: toDateStr(d), amount: amt, note: noteVal }); added++; }
         }
         cm++; if (cm > 12) { cm = 1; cy++; }
       }
@@ -2200,14 +2217,55 @@
     }
 
     function toggleMultiselect() {
-      msMode = !msMode; if (!msMode) selectedIds.clear();
+      msMode = !msMode;
+      if (!msMode) {
+        selectedIds.clear();
+        lastSelectedId = null;
+      }
       let btn = document.getElementById('btn-ms-toggle');
       btn.classList.toggle('active', msMode);
       renderLeft(); updateMsToolbar();
     }
     function toggleSelect(id, e) {
       e.stopPropagation();
-      if (selectedIds.has(id)) selectedIds.delete(id); else selectedIds.add(id);
+
+      let sorted = [...txns].sort((a, b) => a.date.localeCompare(b.date));
+      if (displayFilter !== 'ALL') {
+        sorted = sorted.filter(t => t.type === displayFilter);
+      }
+
+      const targetState = !selectedIds.has(id);
+
+      if (e.shiftKey && lastSelectedId !== null) {
+        const idx1 = sorted.findIndex(t => t.id === lastSelectedId);
+        const idx2 = sorted.findIndex(t => t.id === id);
+
+        if (idx1 !== -1 && idx2 !== -1) {
+          const start = Math.min(idx1, idx2);
+          const end = Math.max(idx1, idx2);
+
+          for (let i = start; i <= end; i++) {
+            const item = sorted[i];
+            if (targetState) {
+              selectedIds.add(item.id);
+            } else {
+              selectedIds.delete(item.id);
+            }
+          }
+          renderLeft();
+          updateMsToolbar();
+          lastSelectedId = id;
+          return;
+        }
+      }
+
+      if (targetState) {
+        selectedIds.add(id);
+      } else {
+        selectedIds.delete(id);
+      }
+      lastSelectedId = id;
+
       updateMsToolbar();
       let el = document.querySelector(`.txn-item[data-id="${id}"]`); if (el) el.classList.toggle('selected', selectedIds.has(id));
       let cb = document.querySelector(`.txn-item[data-id="${id}"] input[type=checkbox]`); if (cb) cb.checked = selectedIds.has(id);
@@ -2216,6 +2274,15 @@
       selectedIds.clear(); updateMsToolbar();
       document.getElementById('ms-amt').value = ''; document.getElementById('ms-date').value = '';
       document.querySelectorAll('.txn-item').forEach(el => el.classList.remove('selected'));
+    }
+    function selectAllVisible() {
+      let sorted = [...txns].sort((a, b) => a.date.localeCompare(b.date));
+      if (displayFilter !== 'ALL') {
+        sorted = sorted.filter(t => t.type === displayFilter);
+      }
+      sorted.forEach(t => selectedIds.add(t.id));
+      renderLeft();
+      updateMsToolbar();
     }
     function updateMsToolbar() {
       let tb = document.getElementById('ms-toolbar'); let cnt = document.getElementById('ms-count');
@@ -2570,6 +2637,7 @@
     window.toggleMultiselect = toggleMultiselect;
     window.toggleSelect = toggleSelect;
     window.deselectAll = deselectAll;
+    window.selectAllVisible = selectAllVisible;
     window.applyMultiselect = applyMultiselect;
     window.deleteSelected = deleteSelected;
     window.addTxn = addTxn;
