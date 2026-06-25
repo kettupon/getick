@@ -2496,6 +2496,46 @@
 
     function getRate() { return ((parseFloat(document.getElementById('mrr').value) || 0) + (parseFloat(document.getElementById('spread').value) || 0)) / 100; }
 
+    /*
+     * ══════════════════════════════════════════════════════════════
+     * BTA-BASED DAILY ACCRUAL INTEREST — Krungthai Statement Logic
+     * ══════════════════════════════════════════════════════════════
+     *
+     * Step 1 — BTA Snapshot
+     *   Every day at ~00:50 AM the bank records the actual outstanding
+     *   balance. This BTA figure (from the รายละเอียด column) is what
+     *   drives interest — not the ยอดเงินคงเหลือ column.
+     *
+     * Step 2 — Build the Timeline
+     *   Between each BTA snapshot, balance is treated as fixed.
+     *   Count calendar days per segment. Weekend gaps just multiply
+     *   the same balance by more days.
+     *
+     * Step 3 — Apply Formula
+     *   interest = balance × (annual_rate / 100) × days ÷ 365
+     *   ALWAYS ÷ 365 — never ÷ 366 even in leap years.
+     *   Sum all segments = total interest charged.
+     *
+     * Step 4 — The Two Special Days
+     *   FIRST day (25th, cycle start): Use BTA ref amount — the
+     *     real outstanding balance before the bank's daily BTA
+     *     accounting entry fires. Not the rounded/reset figure.
+     *   LAST day (24th, cut-off): Use BTA ref from that day's
+     *     รายละเอียด column. The 00:50 snapshot on cut day already
+     *     includes any transactions from the night before.
+     *
+     * Three Segment Types:
+     *   FIRST (Day 1)  → always 1 day, uses BTA ref balance
+     *   MID   (middle) → consecutive days at same balance, grouped
+     *   LAST  (Day 24) → always 1 day, uses BTA ref balance
+     *
+     * The app reconstructs segments automatically:
+     *   1. Detect billing start date → grab balance for FIRST segment
+     *   2. Walk through each day: whenever balance changes, close
+     *      the current segment, open a new one
+     *   3. On cut-off day (24th) → close with balance as LAST segment
+     * ══════════════════════════════════════════════════════════════
+     */
     function simulate() {
       let RATE = getRate();
       let rateTotal = (RATE * 100).toFixed(3);
@@ -2525,19 +2565,36 @@
       let dates = evs.map(e => e.date.getTime()); let minD = new Date(Math.min(...dates));
       let iy = minD.getFullYear(), im = minD.getMonth();
       for (let i = 0; i < 60; i++) { evs.push({ date: new Date(iy + Math.floor((im + i) / 12), (im + i) % 12, 24), type: 'I', amt: 0, note: '' }); }
-      const pri = { I: 0, W: 1, D: 2 }; evs.sort((a, b) => a.date - b.date || pri[a.type] - pri[b.type]);
+      // BTA logic: W/D processed BEFORE I on same day — the 00:50 BTA snapshot
+      // captures transactions from the night before, so cut-off day (24th)
+      // interest uses the post-transaction balance as BTA ref.
+      const pri = { W: 0, D: 1, I: 2 }; evs.sort((a, b) => a.date - b.date || pri[a.type] - pri[b.type]);
 
-      let debt = 0, lastDate = null, pendingSegs = [];
+      let debt = 0, lastDate = null, pendingSegs = [], btaInterestOffset = 0;
       let rows = [], totalInt = 0, totalDep = 0, totalWith = 0; let closedDate = null, done = false;
 
       // inclusive=true → count end date (for interest day 24th)
       // inclusive=false → exclude end date (for W/D transactions, avoids double-counting)
       function closeSeg(toDate, inclusive) {
-        if (lastDate && toDate > lastDate && debt > 0) {
+        if (lastDate && toDate >= lastDate && debt > 0) { // >= allows 1-day segment on cut-off after same-day txn
           let days = dbDiff(lastDate, toDate) + (inclusive ? 1 : 0);
           let displayTo = inclusive ? toDate : new Date(toDate.getTime() - 86400000);
           if (days > 0) {
-            pendingSegs.push({ from: lastDate, to: displayTo, debt: Math.round(debt * 100) / 100, days: days });
+            if (btaInterestOffset > 0) {
+              // BTA Day 1: first day of billing cycle uses debt - previous interest
+              let btaDebt = Math.round((debt - btaInterestOffset) * 100) / 100;
+              if (days === 1) {
+                pendingSegs.push({ from: lastDate, to: displayTo, debt: btaDebt, days: 1 });
+              } else {
+                // Split: Day 1 at BTA-adjusted, remaining at full debt
+                pendingSegs.push({ from: lastDate, to: lastDate, debt: btaDebt, days: 1 });
+                let nextDay = new Date(lastDate.getTime() + 86400000);
+                pendingSegs.push({ from: nextDay, to: displayTo, debt: Math.round(debt * 100) / 100, days: days - 1 });
+              }
+              btaInterestOffset = 0;
+            } else {
+              pendingSegs.push({ from: lastDate, to: displayTo, debt: Math.round(debt * 100) / 100, days: days });
+            }
           }
         }
       }
@@ -2549,9 +2606,9 @@
           lastDate = new Date(ed.getTime() + 86400000); // Next segment starts day after interest (25th)
           if (pendingSegs.length === 0 && debt === 0) continue;
           let intSum = 0;
-          for (let s of pendingSegs) { s.intAmt = s.debt * RATE * s.days / diy(s.from.getFullYear()); intSum += s.intAmt; }
+          for (let s of pendingSegs) { s.intAmt = s.debt * RATE * s.days / 365; intSum += s.intAmt; } // BTA logic: always ÷365
           intSum = Math.round(intSum * 100) / 100; let segs = [...pendingSegs]; pendingSegs = [];
-          if (debt > 0 || segs.length > 0) { debt = Math.round((debt + intSum) * 100) / 100; totalInt += intSum; rows.push({ date: ed, type: 'I', dep: 0, wit: 0, bal: debt, segs, intAmt: intSum }); }
+          if (debt > 0 || segs.length > 0) { debt = Math.round((debt + intSum) * 100) / 100; totalInt += intSum; rows.push({ date: ed, type: 'I', dep: 0, wit: 0, bal: debt, segs, intAmt: intSum }); btaInterestOffset = intSum; }
         } else if (ev.type === 'W') {
           closeSeg(ed, false); debt = Math.round((debt + ev.amt) * 100) / 100; totalWith += ev.amt;
           rows.push({ date: ed, type: 'W', dep: 0, wit: ev.amt, bal: debt, segs: [], intAmt: null, note: ev.note });
@@ -2667,10 +2724,10 @@
         if (r.type === 'I' && r.segs.length > 0) {
           let rng = [], dys = [], fml = [];
           for (let s of r.segs) {
-            let dy = diy(s.from.getFullYear()); rng.push(`${fd(s.from)}–${fd(s.to)}`); dys.push(`${s.days}`);
-            fml.push(`(${fn(s.debt)}×${rateStr}%×${s.days})/${dy}`);
+            rng.push(`${fd(s.from)}–${fd(s.to)}`); dys.push(`${s.days}`);
+            fml.push(`(${fn(s.debt)}×${rateStr}%×${s.days})/365`); // BTA logic: always ÷365
           }
-          let intDisp = r.segs.length > 1 ? `${fn(r.intAmt)}<br><small style="opacity:.7;font-family:var(--sans)">${r.segs.length} ช่วง</small>` : fn(r.intAmt);
+          let intDisp = r.segs.length > 1 ? `${fn(r.intAmt)}<br><small style="opacity:.7;font-family:var(--sans)">${r.segs.length} ช่วง · BTA÷365</small>` : `${fn(r.intAmt)}<br><small style="opacity:.7;font-family:var(--sans)">BTA÷365</small>`;
           let colInt = `<td class="sticky-col col-int mono">${intDisp}</td>`;
           tr.innerHTML = `${colDate}${colWit}${colDep}${colInt}<td>${label}</td><td class="mono" style="text-align:right">${fn(r.bal)}</td><td style="font-size:10px;line-height:1.6">${rng.join('<br>')}</td><td class="mono" style="text-align:right;line-height:1.6">${dys.join('<br>')}</td><td style="font-size:10px;line-height:1.6">${fml.join('<br>')}</td>`;
         } else {
