@@ -1826,9 +1826,10 @@
     let selectedIds = new Set();
     let lastSelectedId = null;
     let recType = 'D';
-    let selectedDays = new Set([26]);
+    let selectedDays = new Set([new Date().getDate()]);
     let displayFilter = 'ALL';
     let activeArchiveTitle = '';
+    let hasFirstScroll = false;
 
     function updateArchiveTitleDisplay() {
       const badge = document.getElementById('active-archive-badge');
@@ -2044,6 +2045,15 @@
         } catch (e) { }
         renderLeft();
         simulate();
+
+        // Scroll to current date if we haven't scrolled yet
+        if (!hasFirstScroll) {
+          hasFirstScroll = true;
+          setTimeout(() => {
+            scrollToCurrentDateTxn();
+            scrollToCurrentDateTable();
+          }, 150);
+        }
       } else {
         // Document does not exist in Firestore. Clear skeletons if we are in initial loading state.
         const txnList = document.getElementById('txn-list');
@@ -2216,14 +2226,34 @@
 
       let [fy, fm] = fromStr.split('-').map(Number); let [ty, tm] = toStr.split('-').map(Number);
       let daysArr = Array.from(selectedDays).sort((a, b) => a - b); let added = 0; let cy = fy, cm = fm;
+      let firstAddedId = null;
+      let firstAddedDate = null;
       while (cy < ty || (cy === ty && cm <= tm)) {
         for (let day of daysArr) {
           let d = new Date(cy, cm - 1, day);
-          if (d.getMonth() === cm - 1) { txns.push({ id: nextId++, type: recType, date: toDateStr(d), amount: amt, note: noteVal }); added++; }
+          if (d.getMonth() === cm - 1) {
+            let newId = nextId++;
+            if (firstAddedId === null) {
+              firstAddedId = newId;
+              firstAddedDate = toDateStr(d);
+            }
+            txns.push({ id: newId, type: recType, date: toDateStr(d), amount: amt, note: noteVal });
+            added++;
+          }
         }
         cm++; if (cm > 12) { cm = 1; cy++; }
       }
-      if (added > 0) { saveData(); renderLeft(); simulate(); toggleRecurringModal(false); }
+      if (added > 0) {
+        saveData();
+        renderLeft();
+        simulate();
+        toggleRecurringModal(false);
+        if (firstAddedId !== null) {
+          setTimeout(() => {
+            scrollToTxn(firstAddedId, firstAddedDate);
+          }, 100);
+        }
+      }
     }
 
     function toggleMultiselect() {
@@ -2452,11 +2482,26 @@
       renderLeft();
       simulate();
       toggleAddTxnModal(false);
-      setTimeout(() => { let list = document.getElementById('txn-list'); list.scrollTop = list.scrollHeight; }, 50);
+      setTimeout(() => {
+        scrollToTxn(id, dateVal);
+      }, 100);
     }
     function delTxn(id, e) { e && e.stopPropagation(); txns = txns.filter(t => t.id !== id); expandedIds.delete(id); selectedIds.delete(id); saveData(); renderLeft(); simulate(); }
     function toggleExpandTxn(id) { if (msMode) return; if (expandedIds.has(id)) expandedIds.delete(id); else expandedIds.add(id); renderLeft(); }
-    function updateTxn(id, field, val) { let t = txns.find(x => x.id === id); if (t) { t[field] = val; saveData(); renderLeft(); simulate(); } }
+    function updateTxn(id, field, val) {
+      let t = txns.find(x => x.id === id);
+      if (t) {
+        t[field] = val;
+        saveData();
+        renderLeft();
+        simulate();
+        if (field === 'date') {
+          setTimeout(() => {
+            scrollToTxn(id, val);
+          }, 100);
+        }
+      }
+    }
 
     function renderLeft() {
       const list = document.getElementById('txn-list');
@@ -2839,8 +2884,45 @@
       }
     }
 
+    function scrollToTxn(id, dateStr) {
+      // 1. Scroll left list to the specific transaction item
+      const txnEl = document.querySelector(`.txn-item[data-id="${id}"]`);
+      if (txnEl) {
+        txnEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        txnEl.classList.add('highlight-pulse');
+        setTimeout(() => txnEl.classList.remove('highlight-pulse'), 2000);
+      }
+
+      // 2. Scroll table to the closest row for that date
+      const rows = document.querySelectorAll('#tb tr[data-date]');
+      if (rows.length > 0) {
+        const targetDate = fromDateStr(dateStr);
+        targetDate.setHours(0, 0, 0, 0);
+        let closestRow = null;
+        let minDiff = Infinity;
+        rows.forEach(row => {
+          const dStr = row.dataset.date;
+          if (dStr) {
+            const d = fromDateStr(dStr);
+            d.setHours(0, 0, 0, 0);
+            const diff = Math.abs(d - targetDate);
+            if (diff < minDiff) {
+              minDiff = diff;
+              closestRow = row;
+            }
+          }
+        });
+        if (closestRow) {
+          closestRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          closestRow.classList.add('highlight-pulse');
+          setTimeout(() => closestRow.classList.remove('highlight-pulse'), 2000);
+        }
+      }
+    }
+
     window.scrollToCurrentDateTxn = scrollToCurrentDateTxn;
     window.scrollToCurrentDateTable = scrollToCurrentDateTable;
+    window.scrollToTxn = scrollToTxn;
 
     // === Export to CSV ===
     function exportCSV() {
@@ -2999,6 +3081,10 @@
       renderLeft();
       simulate();
       toggleArchiveModal(false);
+      setTimeout(() => {
+        scrollToCurrentDateTxn();
+        scrollToCurrentDateTable();
+      }, 100);
     }
 
     function deleteArchive(idx) {
@@ -3138,12 +3224,35 @@
 
     // Initial Bootstrap
     const startApp = async () => {
+      // Set default dates for recurring inputs to current year/month
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonthStr = String(now.getMonth() + 1).padStart(2, '0');
+      
+      const recFromEl = document.getElementById('rec-from');
+      if (recFromEl) recFromEl.value = `${currentYear}-${currentMonthStr}`;
+      
+      const recToEl = document.getElementById('rec-to');
+      if (recToEl) recToEl.value = `${currentYear}-12`;
+      
+      const addTxnDateEl = document.getElementById('add-txn-date');
+      if (addTxnDateEl) addTxnDateEl.value = toDateStr(now);
+
       const hasLocal = loadLocalData();
       if (!hasLocal) {
         showSkeletons();
       } else {
         renderLeft();
         simulate();
+        
+        // Scroll to current date on load if loaded from local
+        if (!hasFirstScroll) {
+          hasFirstScroll = true;
+          setTimeout(() => {
+            scrollToCurrentDateTxn();
+            scrollToCurrentDateTable();
+          }, 100);
+        }
       }
       syncFilterUI();
       initDatePicker();
