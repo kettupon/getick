@@ -924,7 +924,7 @@
 
     .desktop-summ-grid {
       display: none;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       gap: 10px;
       margin-bottom: 12px;
       flex-shrink: 0;
@@ -2984,7 +2984,21 @@
     }
 
     function renderTable(rows, totalInt, totalDep, totalWith, closedDate, RATE) {
+      // Find outstanding debt as of today
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      let todayDebt = 0;
+      const pastRows = rows.filter(r => {
+        const d = new Date(r.date);
+        d.setHours(0,0,0,0);
+        return d <= today;
+      });
+      if (pastRows.length > 0) {
+        todayDebt = pastRows[pastRows.length - 1].bal;
+      }
+
       const summaryHTML = `
+  <div class="scard"><div class="lbl">ยอดหนี้ปัจจุบัน</div><div class="val red">${fn(todayDebt)}</div></div>
   <div class="scard"><div class="lbl">ถอนรวม</div><div class="val red">${fn(totalWith)}</div></div>
   <div class="scard"><div class="lbl">ฝากรวม</div><div class="val grn">${fn(totalDep)}</div></div>
   <div class="scard"><div class="lbl">ดอกเบี้ยรวม</div><div class="val warn">${fn(totalInt)}</div></div>
