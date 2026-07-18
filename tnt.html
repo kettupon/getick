@@ -239,6 +239,16 @@
       background: #d4eadb;
     }
 
+    .btn-icon.coin-active {
+      background: var(--warn-light) !important;
+      color: var(--warn) !important;
+      border-color: #fbd599 !important;
+    }
+
+    .btn-icon.coin-active:hover {
+      background: #fde8cd !important;
+    }
+
     .btn-icon.active {
       background: var(--accent);
       color: #fff;
@@ -812,6 +822,10 @@
       align-items: center;
       justify-content: center;
       padding: 20px;
+    }
+
+    #add-txn-modal {
+      z-index: 100000;
     }
 
     .modal-overlay.show {
@@ -1403,6 +1417,176 @@
       margin-bottom: 6px;
       opacity: 0.8;
     }
+
+    /* Calendar Modal */
+    .calendar-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .calendar-month-year {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .calendar-nav-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text2);
+    }
+    .calendar-nav-btn:hover {
+      background: var(--border);
+      color: var(--text);
+    }
+    .calendar-grid-header {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      text-align: center;
+      font-weight: 600;
+      font-size: 11px;
+      color: var(--text2);
+      margin-bottom: 4px;
+    }
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+    .calendar-cell {
+      aspect-ratio: 1;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 4px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      position: relative;
+      background: var(--surface);
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .calendar-cell:hover {
+      background: var(--surface2);
+      border-color: var(--border2);
+    }
+    .calendar-cell.today {
+      border: 2px solid var(--accent);
+    }
+    .calendar-cell.other-month {
+      opacity: 0.3;
+      cursor: default;
+      pointer-events: none;
+    }
+    .calendar-cell.selected-day {
+      background: var(--accent-light) !important;
+      border-color: var(--accent) !important;
+    }
+    .calendar-day-num {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .calendar-dots {
+      display: flex;
+      gap: 2px;
+      justify-content: center;
+      align-items: center;
+      height: 6px;
+    }
+    .calendar-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+    }
+    .calendar-dot.w-dot {
+      background: var(--danger);
+    }
+    .calendar-dot.d-dot {
+      background: var(--green);
+    }
+    .calendar-details {
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+      margin-top: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+    .calendar-details-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text2);
+    }
+    .calendar-details-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .calendar-details-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 6px;
+      background: var(--surface2);
+      border-radius: 4px;
+      font-size: 11px;
+    }
+    .calendar-details-item-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .calendar-details-item-type {
+      font-size: 9px;
+      font-weight: 600;
+      padding: 1px 3px;
+      border-radius: 3px;
+      line-height: 1.2;
+    }
+    .calendar-details-item-type.W {
+      background: var(--danger-light);
+      color: var(--danger);
+    }
+    .calendar-details-item-type.D {
+      background: var(--green-light);
+      color: var(--green);
+    }
+    .calendar-details-item-note {
+      color: var(--text2);
+    }
+    .calendar-details-item-amt {
+      font-family: var(--mono);
+      font-weight: 600;
+    }
+    .calendar-details-item-amt.W {
+      color: var(--danger);
+    }
+    .calendar-details-item-amt.D {
+      color: var(--green);
+    }
+    .calendar-empty-details {
+      font-size: 11px;
+      color: var(--text3);
+      text-align: center;
+      padding: 10px 0;
+    }
   </style>
 </head>
 
@@ -1449,15 +1633,15 @@
               <button class="btn-icon danger" onclick="addTxn('W')" title="เพิ่มการถอน">
                 <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"
                   stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="12" y1="19" x2="12" y2="5"></line>
-                  <polyline points="5 12 12 5 19 12"></polyline>
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <polyline points="19 12 12 19 5 12"></polyline>
                 </svg>
               </button>
               <button class="btn-icon green" onclick="addTxn('D')" title="เพิ่มการฝาก">
                 <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"
                   stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="12" y1="5" x2="12" y2="19"></line>
-                  <polyline points="19 12 12 19 5 12"></polyline>
+                  <line x1="12" y1="19" x2="12" y2="5"></line>
+                  <polyline points="5 12 12 5 19 12"></polyline>
                 </svg>
               </button>
               <button class="btn-icon accent" onclick="toggleRecurringModal(true)" title="สร้างรายการซ้ำ">
@@ -1547,6 +1731,14 @@
             <h2><span class="dot" style="width:6px;height:6px;border-radius:50%;background:var(--accent);"></span>
               ตารางผลจำลอง</h2>
             <div style="display:flex; align-items:center; gap:6px;">
+              <button class="btn-icon" onclick="toggleCalendarModal(true)" title="ดูปฏิทิน">
+                <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+              </button>
               <button class="btn-icon" onclick="exportCSV()" title="ส่งออก CSV">
                 <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -1810,6 +2002,62 @@
     </div>
   </div>
 
+  <!-- Calendar Modal -->
+  <div id="calendar-modal" class="modal-overlay" onclick="toggleCalendarModal(false)">
+    <div class="modal-content" style="max-width: 400px;" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3>📅 ปฏิทินรายการ</h3>
+        <button class="btn-close" onclick="toggleCalendarModal(false)">✕</button>
+      </div>
+      <div class="calendar-container">
+        <div class="calendar-header">
+          <button class="calendar-nav-btn" onclick="changeCalendarMonth(-1)">◀</button>
+          <span class="calendar-month-year" id="calendar-month-year">มิถุนายน 2569</span>
+          <button class="calendar-nav-btn" onclick="changeCalendarMonth(1)">▶</button>
+        </div>
+        <div class="calendar-grid-header">
+          <div>อา</div><div>จ</div><div>อ</div><div>พ</div><div>พฤ</div><div>ศ</div><div>ส</div>
+        </div>
+        <div class="calendar-grid" id="calendar-grid"></div>
+        
+        <div class="calendar-details">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:6px;">
+            <div class="calendar-details-title" id="calendar-details-title" style="border:none; padding:0; margin:0;">รายการวันที่ —</div>
+            <div style="display:flex; gap:4px;">
+              <button class="btn-icon coin-active" id="cal-coin-toggle" onclick="toggleCalNumbers()" title="แสดงยอดเงิน / แสดงจุด" style="width:24px; height:24px;">
+                <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="9"></circle>
+                  <circle cx="12" cy="12" r="5"></circle>
+                </svg>
+              </button>
+              <button class="btn-icon danger" onclick="addTxnFromCalendar('W')" title="เพิ่มการถอนสำหรับวันนี้" style="width:24px; height:24px;">
+                <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <polyline points="19 12 12 19 5 12"></polyline>
+                </svg>
+              </button>
+              <button class="btn-icon green" onclick="addTxnFromCalendar('D')" title="เพิ่มการฝากสำหรับวันนี้" style="width:24px; height:24px;">
+                <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="19" x2="12" y2="5"></line>
+                  <polyline points="5 12 12 5 19 12"></polyline>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div id="calendar-details-list" style="margin-top:6px;">
+            <div class="calendar-empty-details">เลือกวันที่ในปฏิทินเพื่อดูรายละเอียด</div>
+          </div>
+        </div>
+      </div>
+      <!-- Summary Box above bottom row -->
+      <div id="calendar-day-summary" style="margin-top: 12px; padding: 8px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; display: flex; justify-content: space-between; font-size: 11px; font-weight: 600;">
+        <div>ถอนรวม: <span id="cal-sum-w" style="color:var(--danger)">0.00 บ.</span></div>
+        <div>ฝากรวม: <span id="cal-sum-d" style="color:var(--green)">0.00 บ.</span></div>
+      </div>
+
+    </div>
+  </div>
+
   <!-- Firebase SDK Module -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -1844,6 +2092,12 @@
     let displayFilter = 'ALL';
     let activeArchiveTitle = '';
     let hasFirstScroll = false;
+
+    // Calendar State
+    let calYear = new Date().getFullYear();
+    let calMonth = new Date().getMonth();
+    let calSelectedDateStr = '';
+    let calShowNumbers = true; // Default is on
 
     function updateArchiveTitleDisplay() {
       const badge = document.getElementById('active-archive-badge');
@@ -2412,12 +2666,32 @@
     // === Add Transaction Modal Logic ===
     let pendingTxnType = 'W';
 
-    function addTxn(type) {
+    function addTxn(type, lockedDateStr) {
       pendingTxnType = type;
-      // Set today's date as default
-      const now = new Date();
-      const todayStr = toDateStr(now);
-      document.getElementById('add-txn-date').value = todayStr;
+      
+      const dateEl = document.getElementById('add-txn-date');
+      const lockNoticeEl = document.querySelector('.add-txn-modal .date-lock-notice');
+
+      if (lockedDateStr) {
+        dateEl.value = lockedDateStr;
+        dateEl.readOnly = true;
+        dateEl.style.opacity = '0.7';
+        if (lockNoticeEl) {
+          const d = fromDateStr(lockedDateStr);
+          lockNoticeEl.innerHTML = `🔒 วันที่ถูกล็อคเป็นวันที่เลือกบนปฏิทิน: ${fd(d)}`;
+          lockNoticeEl.style.color = 'var(--accent)';
+        }
+      } else {
+        const now = new Date();
+        dateEl.value = toDateStr(now);
+        dateEl.readOnly = false;
+        dateEl.style.opacity = '1';
+        if (lockNoticeEl) {
+          lockNoticeEl.innerHTML = '🔒 วันที่จะถูกตั้งค่าเป็นวันปัจจุบันเสมอเพื่อป้องกันข้อผิดพลาด';
+          lockNoticeEl.style.color = '';
+        }
+      }
+
       document.getElementById('add-txn-amount').value = type === 'W' ? 20000 : 5000;
       document.getElementById('add-txn-note').value = '';
 
@@ -2427,15 +2701,15 @@
       const confirmBtn = document.getElementById('add-txn-confirm-btn');
 
       if (type === 'W') {
-        titleEl.innerHTML = '⬆️ เพิ่มการถอน';
+        titleEl.innerHTML = '⬇️ เพิ่มการถอน';
         indicatorEl.className = 'txn-modal-type-indicator type-W';
-        indicatorEl.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg> ถอนเงิน (Withdrawal)';
+        indicatorEl.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg> ถอนเงิน (Withdrawal)';
         confirmBtn.className = 'btn-confirm-W';
         confirmBtn.textContent = '✓ ยืนยันการถอน';
       } else {
-        titleEl.innerHTML = '⬇️ เพิ่มการฝาก';
+        titleEl.innerHTML = '⬆️ เพิ่มการฝาก';
         indicatorEl.className = 'txn-modal-type-indicator type-D';
-        indicatorEl.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg> ฝากชำระ (Deposit)';
+        indicatorEl.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg> ฝากชำระ (Deposit)';
         confirmBtn.className = 'btn-confirm-D';
         confirmBtn.textContent = '✓ ยืนยันการฝาก';
       }
@@ -2566,6 +2840,13 @@
     `;
         list.appendChild(div);
       });
+
+      // Re-render calendar if calendar modal is open
+      const calModal = document.getElementById('calendar-modal');
+      if (calModal && calModal.classList.contains('show')) {
+        renderCalendar();
+        showCalendarDayDetails(calSelectedDateStr);
+      }
     }
 
     function getRate() { return ((parseFloat(document.getElementById('mrr').value) || 0) + (parseFloat(document.getElementById('spread').value) || 0)) / 100; }
@@ -2952,6 +3233,11 @@
     window.scrollToCurrentDateTxn = scrollToCurrentDateTxn;
     window.scrollToCurrentDateTable = scrollToCurrentDateTable;
     window.scrollToTxn = scrollToTxn;
+    window.toggleCalendarModal = toggleCalendarModal;
+    window.changeCalendarMonth = changeCalendarMonth;
+    window.renderCalendar = renderCalendar;
+    window.addTxnFromCalendar = addTxnFromCalendar;
+    window.toggleCalNumbers = toggleCalNumbers;
 
     // === Export to CSV ===
     function exportCSV() {
@@ -3224,6 +3510,195 @@
         });
       }
     })();
+
+    // === Calendar Functions ===
+    const formatCalAmt = val => {
+      if (val === 0) return '';
+      if (val >= 1000) {
+        let kVal = val / 1000;
+        return kVal % 1 === 0 ? kVal + 'k' : kVal.toFixed(1) + 'k';
+      }
+      return val.toString();
+    };
+
+    function toggleCalendarModal(show) {
+      document.getElementById('calendar-modal').classList.toggle('show', show);
+      if (show) {
+        calYear = new Date().getFullYear();
+        calMonth = new Date().getMonth();
+        calSelectedDateStr = toDateStr(new Date());
+        updateCoinToggleUI();
+        renderCalendar();
+        showCalendarDayDetails(calSelectedDateStr);
+      }
+    }
+
+    function changeCalendarMonth(delta) {
+      calMonth += delta;
+      if (calMonth < 0) {
+        calMonth = 11;
+        calYear--;
+      } else if (calMonth > 11) {
+        calMonth = 0;
+        calYear++;
+      }
+      renderCalendar();
+    }
+
+    function toggleCalNumbers() {
+      calShowNumbers = !calShowNumbers;
+      updateCoinToggleUI();
+      renderCalendar();
+    }
+
+    function updateCoinToggleUI() {
+      const btn = document.getElementById('cal-coin-toggle');
+      if (btn) {
+        btn.classList.toggle('coin-active', calShowNumbers);
+      }
+    }
+
+    function renderCalendar() {
+      const headerEl = document.getElementById('calendar-month-year');
+      headerEl.textContent = `${mthFull[calMonth]} ${calYear + 543}`;
+
+      const gridEl = document.getElementById('calendar-grid');
+      gridEl.innerHTML = '';
+
+      // First day of the month (0 = Sun, 6 = Sat)
+      const firstDay = new Date(calYear, calMonth, 1).getDay();
+      // Total days in current month
+      const totalDays = new Date(calYear, calMonth + 1, 0).getDate();
+      // Total days in previous month
+      const prevTotalDays = new Date(calYear, calMonth, 0).getDate();
+
+      // Render previous month's trailing days
+      for (let i = firstDay - 1; i >= 0; i--) {
+        const dNum = prevTotalDays - i;
+        const cell = document.createElement('div');
+        cell.className = 'calendar-cell other-month';
+        cell.innerHTML = `<span class="calendar-day-num">${dNum}</span>`;
+        gridEl.appendChild(cell);
+      }
+
+      // Check if showing numbers toggle is enabled
+      const showNumbers = calShowNumbers;
+
+      // Render current month's days
+      for (let day = 1; day <= totalDays; day++) {
+        const dObj = new Date(calYear, calMonth, day);
+        const dateStr = toDateStr(dObj);
+        const isToday = toDateStr(new Date()) === dateStr;
+        const isSelected = calSelectedDateStr === dateStr;
+
+        // Filter transactions for this day
+        const dayTxns = txns.filter(t => t.date === dateStr);
+        let sumW = 0;
+        let sumD = 0;
+        dayTxns.forEach(t => {
+          if (t.type === 'W') sumW += t.amount;
+          if (t.type === 'D') sumD += t.amount;
+        });
+
+        const cell = document.createElement('div');
+        cell.className = `calendar-cell${isToday ? ' today' : ''}${isSelected ? ' selected-day' : ''}`;
+        
+        if (showNumbers) {
+          cell.style.padding = '2px';
+        } else {
+          cell.style.padding = '';
+        }
+
+        cell.onclick = () => {
+          // Update selection
+          document.querySelectorAll('.calendar-cell').forEach(c => c.classList.remove('selected-day'));
+          cell.classList.add('selected-day');
+          calSelectedDateStr = dateStr;
+          showCalendarDayDetails(dateStr);
+        };
+
+        let indicatorHtml = '';
+        if (showNumbers) {
+          indicatorHtml = '<div style="display:flex; flex-direction:column; gap:1px; width:100%; align-items:center; margin-top:2px; line-height:1.1;">';
+          if (sumW > 0) {
+            indicatorHtml += `<span style="color:var(--danger); font-size:8px; font-weight:600; font-family:var(--mono); scale:0.95; line-height:1;">-${formatCalAmt(sumW)}</span>`;
+          }
+          if (sumD > 0) {
+            indicatorHtml += `<span style="color:var(--green); font-size:8px; font-weight:600; font-family:var(--mono); scale:0.95; line-height:1;">+${formatCalAmt(sumD)}</span>`;
+          }
+          indicatorHtml += '</div>';
+        } else {
+          if (sumW > 0 || sumD > 0) {
+            indicatorHtml = '<div class="calendar-dots">';
+            if (sumW > 0) indicatorHtml += '<span class="calendar-dot w-dot"></span>';
+            if (sumD > 0) indicatorHtml += '<span class="calendar-dot d-dot"></span>';
+            indicatorHtml += '</div>';
+          }
+        }
+
+        cell.innerHTML = `
+          <span class="calendar-day-num">${day}</span>
+          ${indicatorHtml}
+        `;
+        gridEl.appendChild(cell);
+      }
+
+      // Render next month's leading days to complete grid (42 cells = 6 rows)
+      const totalCells = gridEl.children.length;
+      const remainingCells = 42 - totalCells;
+      for (let day = 1; day <= remainingCells; day++) {
+        const cell = document.createElement('div');
+        cell.className = 'calendar-cell other-month';
+        cell.innerHTML = `<span class="calendar-day-num">${day}</span>`;
+        gridEl.appendChild(cell);
+      }
+    }
+
+    function showCalendarDayDetails(dateStr) {
+      const d = fromDateStr(dateStr);
+      document.getElementById('calendar-details-title').textContent = `รายการวันที่ ${fd(d)}`;
+
+      const listEl = document.getElementById('calendar-details-list');
+      const dayTxns = txns.filter(t => t.date === dateStr);
+
+      let sumW = 0;
+      let sumD = 0;
+
+      if (dayTxns.length === 0) {
+        listEl.innerHTML = '<div class="calendar-empty-details">ไม่มีรายการเคลื่อนไหวในวันนี้</div>';
+        document.getElementById('cal-sum-w').textContent = '0.00 บ.';
+        document.getElementById('cal-sum-d').textContent = '0.00 บ.';
+        return;
+      }
+
+      listEl.innerHTML = '';
+      dayTxns.forEach(t => {
+        if (t.type === 'W') sumW += t.amount;
+        if (t.type === 'D') sumD += t.amount;
+
+        const item = document.createElement('div');
+        item.className = 'calendar-details-item';
+        item.innerHTML = `
+          <div class="calendar-details-item-left">
+            <span class="calendar-details-item-type ${t.type}">${t.type === 'W' ? 'ถอน' : 'ฝาก'}</span>
+            ${t.note ? `<span class="calendar-details-item-note">${t.note}</span>` : '<span class="calendar-details-item-note">—</span>'}
+          </div>
+          <span class="calendar-details-item-amt ${t.type}">${t.type === 'W' ? '-' : '+'}${fn(t.amount)} บ.</span>
+        `;
+        listEl.appendChild(item);
+      });
+
+      document.getElementById('cal-sum-w').textContent = sumW > 0 ? `-${fn(sumW)} บ.` : '0.00 บ.';
+      document.getElementById('cal-sum-d').textContent = sumD > 0 ? `+${fn(sumD)} บ.` : '0.00 บ.';
+    }
+
+    function addTxnFromCalendar(type) {
+      if (!calSelectedDateStr) {
+        alert('กรุณาเลือกวันที่บนปฏิทินก่อน');
+        return;
+      }
+      addTxn(type, calSelectedDateStr);
+    }
 
     function showSkeletons() {
       const list = document.getElementById('txn-list');
