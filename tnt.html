@@ -467,6 +467,20 @@
       background: var(--surface2);
       overflow: hidden;
       flex-shrink: 0;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .txn-item.month-even {
+      background: var(--surface);
+    }
+
+    .txn-item.month-odd {
+      background: var(--surface2);
+    }
+
+    .txn-item.selected {
+      background: var(--accent-light) !important;
+      border-color: #b6d9c5 !important;
     }
 
     .txn-item.txn-W {
@@ -1507,7 +1521,7 @@
             </div>
             <div style="display:flex; gap:6px; margin-top:4px;">
               <input id="ms-date" type="date" class="rec-input" style="width:110px;" title="แก้วันที่">
-              <input id="ms-amt" type="number" class="rec-input" style="flex:1;" placeholder="กรอกยอดใหม่">
+              <input id="ms-amt" type="number" inputmode="decimal" class="rec-input" style="flex:1;" placeholder="กรอกยอดใหม่">
               <button onclick="applyMultiselect()"
                 style="background:var(--accent); color:#fff; border:none; padding:4px 10px; border-radius:4px; font-family:var(--sans);">แทนที่</button>
             </div>
@@ -1611,7 +1625,7 @@
         <div style="display:flex; gap:8px;">
           <div style="flex:1;">
             <div style="font-size:11px; color:var(--text2); margin-bottom:4px;">จำนวนเงิน</div>
-            <input class="rec-input" id="rec-amt" type="number" value="5000" min="0" step="100">
+            <input class="rec-input" id="rec-amt" type="number" inputmode="decimal" value="5000" min="0" step="100">
           </div>
           <div style="flex:1;">
             <div style="font-size:11px; color:var(--text2); margin-bottom:4px;">ทำทุกวันที่</div>
@@ -1662,10 +1676,10 @@
         <div style="font-size:11px; color:var(--text2); text-align:center;">อัตราดอกเบี้ย: MRR + ส่วนต่าง (%
           ต่อปี)</div>
         <div style="display:flex; justify-content:center; align-items:center; gap:8px;">
-          <input type="number" id="mrr" value="6.845" min="0" max="20" step="0.005" oninput="simulate()"
+          <input type="number" id="mrr" inputmode="decimal" value="6.845" min="0" max="20" step="0.005" oninput="simulate()"
             style="width:80px; padding:6px; font-family:var(--mono); text-align:center; border:1px solid var(--border); border-radius:4px;">
           <span style="font-weight:600;">+</span>
-          <input type="number" id="spread" value="5.5" min="0" max="15" step="0.25" oninput="simulate()"
+          <input type="number" id="spread" inputmode="decimal" value="5.5" min="0" max="15" step="0.25" oninput="simulate()"
             style="width:80px; padding:6px; font-family:var(--mono); text-align:center; border:1px solid var(--border); border-radius:4px;">
         </div>
         <div class="rate-result">
@@ -1687,7 +1701,7 @@
           <div style="font-size:11px; color:var(--text2); text-align:center; margin-bottom:8px; font-weight:600;">🔍 ค้นหาและเลือกรายการแบบกลุ่ม (Detect Match)</div>
           <div style="display:flex; flex-direction:column; gap:6px;">
             <input class="rec-input" id="match-note" type="text" placeholder="ระบุหมายเหตุที่ต้องการค้นหา" style="font-family:var(--sans); font-size:11px;">
-            <input class="rec-input" id="match-amount" type="number" placeholder="ระบุจำนวนเงินที่ต้องการค้นหา" style="font-size:11px;">
+            <input class="rec-input" id="match-amount" type="number" inputmode="decimal" placeholder="ระบุจำนวนเงินที่ต้องการค้นหา" style="font-size:11px;">
             <button onclick="detectAndSelectMatches()"
               style="width:100%; padding:8px; background:var(--accent-light); color:var(--accent); border:1px solid #b6d9c5; border-radius:4px; font-family:var(--sans); font-size:11px; font-weight:600; cursor:pointer;">ค้นหาและเลือกรายการ</button>
           </div>
@@ -1765,7 +1779,7 @@
       </div>
       <div class="field-group">
         <label>จำนวนเงิน (บาท)</label>
-        <input type="number" id="add-txn-amount" min="0" step="100" placeholder="กรอกจำนวนเงิน" oninput="updateAddTxnPreview()">
+        <input type="number" id="add-txn-amount" inputmode="decimal" min="0" step="100" placeholder="กรอกจำนวนเงิน" oninput="updateAddTxnPreview()">
       </div>
       <div class="field-group">
         <label>หมายเหตุ (ไม่จำเป็น)</label>
@@ -2513,9 +2527,24 @@
 
       document.getElementById('txn-count').textContent = displayFilter === 'ALL' ? `(${txns.length})` : `(${sorted.length}/${txns.length})`;
       list.innerHTML = '';
+      // Map all unique months in full unfiltered txns to chronological indices
+      let allMonths = Array.from(new Set(txns.map(t => {
+        let d = fromDateStr(t.date);
+        return `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`;
+      }))).sort();
+
+      let monthToClass = {};
+      allMonths.forEach((m, idx) => {
+        monthToClass[m] = idx % 2 === 0 ? 'month-even' : 'month-odd';
+      });
+
       sorted.forEach(t => {
         let isOpen = expandedIds.has(t.id) && !msMode; let isSelected = selectedIds.has(t.id); let d = fromDateStr(t.date);
-        let div = document.createElement('div'); div.className = `txn-item txn-${t.type}${msMode ? ' ms-mode' : ''}${isSelected ? ' selected' : ''}`; div.dataset.id = t.id;
+        
+        let monthKey = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`;
+        let monthClass = monthToClass[monthKey] || 'month-even';
+
+        let div = document.createElement('div'); div.className = `txn-item txn-${t.type} ${monthClass}${msMode ? ' ms-mode' : ''}${isSelected ? ' selected' : ''}`; div.dataset.id = t.id;
         let cbHtml = msMode ? `<input type="checkbox" style="accent-color:var(--accent)" ${isSelected ? 'checked' : ''} onclick="toggleSelect(${t.id}, event)">` : '';
         let viewCols = msMode ? `grid-template-columns: 16px 26px 1fr auto 24px` : `grid-template-columns: 26px 1fr auto 24px`;
         div.innerHTML = `
@@ -2531,7 +2560,7 @@
       </div>
       <div class="txn-edit ${isOpen ? 'open' : ''}">
         <div class="txn-edit-row"><span class="txn-edit-label">วันที่</span><input type="date" value="${t.date}" onchange="updateTxn(${t.id},'date',this.value)"></div>
-        <div class="txn-edit-row"><span class="txn-edit-label">จำนวน</span><input type="number" value="${t.amount}" min="0" step="100" style="text-align:right" onchange="updateTxn(${t.id},'amount',+this.value)"></div>
+        <div class="txn-edit-row"><span class="txn-edit-label">จำนวน</span><input type="number" value="${t.amount}" inputmode="decimal" min="0" step="100" style="text-align:right" onchange="updateTxn(${t.id},'amount',+this.value)"></div>
         <div class="txn-edit-row"><span class="txn-edit-label">หมายเหตุ</span><input type="text" placeholder="ระบุ (ถ้ามี)" value="${t.note || ''}" onchange="updateTxn(${t.id},'note',this.value)"></div>
       </div>
     `;
