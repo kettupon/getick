@@ -833,6 +833,16 @@
       animation: fadeIn 0.15s ease-out;
     }
 
+    .color-dot {
+      transition: all 0.2s ease;
+    }
+
+    .color-dot.selected {
+      transform: scale(1.2);
+      border-color: var(--text) !important;
+      box-shadow: 0 0 0 2px var(--surface), 0 0 6px rgba(0, 0, 0, 0.3);
+    }
+
     @keyframes fadeIn {
       from {
         opacity: 0;
@@ -1697,6 +1707,8 @@
               <div>
                 <button onclick="deleteSelected()"
                   style="background:var(--danger); color:#fff; border:none; padding:4px 8px; border-radius:4px; font-family:var(--sans); cursor:pointer;">ลบ</button>
+                <button id="btn-ms-show-selected" onclick="toggleShowSelectedOnly()"
+                  style="background:var(--surface2); color:var(--text); border:1px solid var(--border); padding:3px 8px; border-radius:4px; font-family:var(--sans); margin-left:4px; cursor:pointer;">แสดงที่เลือก</button>
                 <button onclick="selectAllVisible()"
                   style="background:var(--accent-light); color:var(--accent); border:1px solid #b6d9c5; padding:3px 8px; border-radius:4px; font-family:var(--sans); margin-left:4px; cursor:pointer;">เลือกทั้งหมด</button>
                 <button onclick="deselectAll()"
@@ -1838,6 +1850,19 @@
           <div style="font-size:11px; color:var(--text2); margin-bottom:4px;">หมายเหตุ (ไม่ระบุจะถูกตั้งเป็น "ซ้ำ")</div>
           <input class="rec-input" id="rec-note" type="text" placeholder="ระบุหมายเหตุ เช่น ดอกเบี้ย, เงินเดือน" style="font-family:var(--sans);">
         </div>
+        <div>
+          <div style="font-size:11px; color:var(--text2); margin-bottom:4px;">บุ๊คมาร์กสี (Bookmark Color)</div>
+          <div class="color-picker-dots-rec" style="display: flex; gap: 12px; margin-top: 6px; align-items: center;">
+            <div class="color-dot red" onclick="selectRecColor('red')" title="สีแดง" style="width: 24px; height: 24px; border-radius: 50%; background: #ef4444; cursor: pointer; border: 2px solid transparent; transition: all 0.2s;"></div>
+            <div class="color-dot orange" onclick="selectRecColor('orange')" title="สีส้ม" style="width: 24px; height: 24px; border-radius: 50%; background: #f97316; cursor: pointer; border: 2px solid transparent; transition: all 0.2s;"></div>
+            <div class="color-dot yellow" onclick="selectRecColor('yellow')" title="สีเหลือง" style="width: 24px; height: 24px; border-radius: 50%; background: #eab308; cursor: pointer; border: 2px solid transparent; transition: all 0.2s;"></div>
+            <div class="color-dot green" onclick="selectRecColor('green')" title="สีเขียว" style="width: 24px; height: 24px; border-radius: 50%; background: #22c55e; cursor: pointer; border: 2px solid transparent; transition: all 0.2s;"></div>
+            <div class="color-dot purple" onclick="selectRecColor('purple')" title="สีม่วง" style="width: 24px; height: 24px; border-radius: 50%; background: #a855f7; cursor: pointer; border: 2px solid transparent; transition: all 0.2s;"></div>
+            <div class="color-dot blue" onclick="selectRecColor('blue')" title="สีน้ำเงิน" style="width: 24px; height: 24px; border-radius: 50%; background: #3b82f6; cursor: pointer; border: 2px solid transparent; transition: all 0.2s;"></div>
+            <div class="color-dot magenta" onclick="selectRecColor('magenta')" title="สีบานเย็น" style="width: 24px; height: 24px; border-radius: 50%; background: #d946ef; cursor: pointer; border: 2px solid transparent; transition: all 0.2s;"></div>
+            <div class="color-dot none selected" onclick="selectRecColor('')" title="ไม่ระบุ" style="width: 24px; height: 24px; border-radius: 50%; background: var(--surface2); cursor: pointer; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--text3); transition: all 0.2s;">✕</div>
+          </div>
+        </div>
         <button class="btn-gen" onclick="generateRecurring()">สร้างรายการทั้งหมด</button>
       </div>
     </div>
@@ -1977,6 +2002,19 @@
         <label>หมายเหตุ (ไม่จำเป็น)</label>
         <input type="text" id="add-txn-note" placeholder="ระบุหมายเหตุ (ถ้ามี)" style="font-family:var(--sans);">
       </div>
+      <div class="field-group">
+        <label>บุ๊คมาร์กสี (Bookmark Color)</label>
+        <div class="color-picker-dots" style="display: flex; gap: 12px; margin-top: 6px; align-items: center;">
+          <div class="color-dot red" onclick="selectAddTxnColor('red')" title="สีแดง" style="width: 24px; height: 24px; border-radius: 50%; background: #ef4444; cursor: pointer; border: 2px solid transparent; transition: all 0.2s;"></div>
+          <div class="color-dot orange" onclick="selectAddTxnColor('orange')" title="สีส้ม" style="width: 24px; height: 24px; border-radius: 50%; background: #f97316; cursor: pointer; border: 2px solid transparent; transition: all 0.2s;"></div>
+          <div class="color-dot yellow" onclick="selectAddTxnColor('yellow')" title="สีเหลือง" style="width: 24px; height: 24px; border-radius: 50%; background: #eab308; cursor: pointer; border: 2px solid transparent; transition: all 0.2s;"></div>
+          <div class="color-dot green" onclick="selectAddTxnColor('green')" title="สีเขียว" style="width: 24px; height: 24px; border-radius: 50%; background: #22c55e; cursor: pointer; border: 2px solid transparent; transition: all 0.2s;"></div>
+          <div class="color-dot purple" onclick="selectAddTxnColor('purple')" title="สีม่วง" style="width: 24px; height: 24px; border-radius: 50%; background: #a855f7; cursor: pointer; border: 2px solid transparent; transition: all 0.2s;"></div>
+          <div class="color-dot blue" onclick="selectAddTxnColor('blue')" title="สีน้ำเงิน" style="width: 24px; height: 24px; border-radius: 50%; background: #3b82f6; cursor: pointer; border: 2px solid transparent; transition: all 0.2s;"></div>
+          <div class="color-dot magenta" onclick="selectAddTxnColor('magenta')" title="สีบานเย็น" style="width: 24px; height: 24px; border-radius: 50%; background: #d946ef; cursor: pointer; border: 2px solid transparent; transition: all 0.2s;"></div>
+          <div class="color-dot none selected" onclick="selectAddTxnColor('')" title="ไม่ระบุ" style="width: 24px; height: 24px; border-radius: 50%; background: var(--surface2); cursor: pointer; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--text3); transition: all 0.2s;">✕</div>
+        </div>
+      </div>
       <div class="preview-summary" id="add-txn-preview">
         <div class="preview-row"><span class="p-label">ประเภท</span><span class="p-value" id="preview-type">—</span></div>
         <div class="preview-row"><span class="p-label">วันที่</span><span class="p-value" id="preview-date">—</span></div>
@@ -2099,6 +2137,19 @@
     let calMonth = new Date().getMonth();
     let calSelectedDateStr = '';
     let calShowNumbers = true; // Default is on
+
+    function getBookmarkHex(color) {
+      const colors = {
+        red: '#ef4444',
+        orange: '#f97316',
+        yellow: '#eab308',
+        green: '#22c55e',
+        purple: '#a855f7',
+        blue: '#3b82f6',
+        magenta: '#d946ef'
+      };
+      return colors[color] || '';
+    }
 
     function updateArchiveTitleDisplay() {
       const badge = document.getElementById('active-archive-badge');
@@ -2396,6 +2447,8 @@
       if (show) {
         const noteEl = document.getElementById('rec-note');
         if (noteEl) noteEl.value = '';
+        recSelectedColor = '';
+        selectRecColor('');
       }
     }
 
@@ -2506,7 +2559,7 @@
               firstAddedId = newId;
               firstAddedDate = toDateStr(d);
             }
-            txns.push({ id: newId, type: recType, date: toDateStr(d), amount: amt, note: noteVal });
+            txns.push({ id: newId, type: recType, date: toDateStr(d), amount: amt, note: noteVal, color: recSelectedColor });
             added++;
           }
         }
@@ -2525,11 +2578,38 @@
       }
     }
 
+    let showSelectedOnly = false;
+
+    function toggleShowSelectedOnly() {
+      showSelectedOnly = !showSelectedOnly;
+      updateShowSelectedBtnUI();
+      renderLeft();
+    }
+
+    function updateShowSelectedBtnUI() {
+      const btn = document.getElementById('btn-ms-show-selected');
+      if (btn) {
+        if (showSelectedOnly) {
+          btn.textContent = 'แสดงทั้งหมด';
+          btn.style.background = 'var(--accent)';
+          btn.style.color = '#fff';
+          btn.style.borderColor = 'var(--accent)';
+        } else {
+          btn.textContent = 'แสดงที่เลือก';
+          btn.style.background = 'var(--surface2)';
+          btn.style.color = 'var(--text)';
+          btn.style.borderColor = 'var(--border)';
+        }
+      }
+    }
+
     function toggleMultiselect() {
       msMode = !msMode;
       if (!msMode) {
         selectedIds.clear();
         lastSelectedId = null;
+        showSelectedOnly = false;
+        updateShowSelectedBtnUI();
       }
       let btn = document.getElementById('btn-ms-toggle');
       btn.classList.toggle('active', msMode);
@@ -2576,13 +2656,20 @@
       lastSelectedId = id;
 
       updateMsToolbar();
-      let el = document.querySelector(`.txn-item[data-id="${id}"]`); if (el) el.classList.toggle('selected', selectedIds.has(id));
-      let cb = document.querySelector(`.txn-item[data-id="${id}"] input[type=checkbox]`); if (cb) cb.checked = selectedIds.has(id);
+      if (showSelectedOnly) {
+        renderLeft();
+      } else {
+        let el = document.querySelector(`.txn-item[data-id="${id}"]`); if (el) el.classList.toggle('selected', selectedIds.has(id));
+        let cb = document.querySelector(`.txn-item[data-id="${id}"] input[type=checkbox]`); if (cb) cb.checked = selectedIds.has(id);
+      }
     }
     function deselectAll() {
       selectedIds.clear(); updateMsToolbar();
       document.getElementById('ms-amt').value = ''; document.getElementById('ms-date').value = '';
       document.querySelectorAll('.txn-item').forEach(el => el.classList.remove('selected'));
+      showSelectedOnly = false;
+      updateShowSelectedBtnUI();
+      renderLeft();
     }
     function selectAllVisible() {
       let sorted = [...txns].sort((a, b) => a.date.localeCompare(b.date));
@@ -2666,9 +2753,37 @@
 
     // === Add Transaction Modal Logic ===
     let pendingTxnType = 'W';
+    let addTxnSelectedColor = '';
+    let recSelectedColor = '';
+
+    function selectRecColor(color) {
+      recSelectedColor = color;
+      const dots = document.querySelectorAll('.color-picker-dots-rec .color-dot');
+      dots.forEach(dot => {
+        if (dot.classList.contains(color || 'none')) {
+          dot.classList.add('selected');
+        } else {
+          dot.classList.remove('selected');
+        }
+      });
+    }
+
+    function selectAddTxnColor(color) {
+      addTxnSelectedColor = color;
+      const dots = document.querySelectorAll('.add-txn-modal .color-dot');
+      dots.forEach(dot => {
+        if (dot.classList.contains(color || 'none')) {
+          dot.classList.add('selected');
+        } else {
+          dot.classList.remove('selected');
+        }
+      });
+    }
 
     function addTxn(type, lockedDateStr) {
       pendingTxnType = type;
+      addTxnSelectedColor = '';
+      selectAddTxnColor('');
       
       const dateEl = document.getElementById('add-txn-date');
       const lockNoticeEl = document.querySelector('.add-txn-modal .date-lock-notice');
@@ -2765,7 +2880,7 @@
       if (!confirm(confirmMsg)) return;
 
       let id = nextId++;
-      txns.push({ id, type: pendingTxnType, date: dateVal, amount: amtVal, note: noteVal });
+      txns.push({ id, type: pendingTxnType, date: dateVal, amount: amtVal, note: noteVal, color: addTxnSelectedColor });
       expandedIds.add(id);
       saveData();
       renderLeft();
@@ -2775,7 +2890,29 @@
         scrollToTxn(id, dateVal);
       }, 100);
     }
-    function delTxn(id, e) { e && e.stopPropagation(); txns = txns.filter(t => t.id !== id); expandedIds.delete(id); selectedIds.delete(id); saveData(); renderLeft(); simulate(); }
+    function delTxn(id, e) {
+      e && e.stopPropagation();
+      let t = txns.find(x => x.id === id);
+      if (t) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const txnDate = fromDateStr(t.date);
+        txnDate.setHours(0, 0, 0, 0);
+
+        if (txnDate < today) {
+          const d = fromDateStr(t.date);
+          const confirmMsg = `⚠️ คุณกำลังลบรายการในอดีต (วันที่: ${fd(d)})\n\nต้องการยืนยันการลบหรือไม่?`;
+          if (!confirm(confirmMsg)) return;
+        }
+      }
+      txns = txns.filter(t => t.id !== id);
+      expandedIds.delete(id);
+      selectedIds.delete(id);
+      saveData();
+      renderLeft();
+      simulate();
+    }
     function toggleExpandTxn(id) { if (msMode) return; if (expandedIds.has(id)) expandedIds.delete(id); else expandedIds.add(id); renderLeft(); }
     function updateTxn(id, field, val) {
       let t = txns.find(x => x.id === id);
@@ -2800,6 +2937,10 @@
         sorted = sorted.filter(t => t.type === displayFilter);
       }
 
+      if (msMode && showSelectedOnly) {
+        sorted = sorted.filter(t => selectedIds.has(t.id));
+      }
+
       document.getElementById('txn-count').textContent = displayFilter === 'ALL' ? `(${txns.length})` : `(${sorted.length}/${txns.length})`;
       list.innerHTML = '';
       // Map all unique months in full unfiltered txns to chronological indices
@@ -2822,13 +2963,21 @@
         let div = document.createElement('div'); div.className = `txn-item txn-${t.type} ${monthClass}${msMode ? ' ms-mode' : ''}${isSelected ? ' selected' : ''}`; div.dataset.id = t.id;
         let cbHtml = msMode ? `<input type="checkbox" style="accent-color:var(--accent)" ${isSelected ? 'checked' : ''} onclick="toggleSelect(${t.id}, event)">` : '';
         let viewCols = msMode ? `grid-template-columns: 16px 26px 1fr auto 24px` : `grid-template-columns: 26px 1fr auto 24px`;
+
+        let noteContainer = '';
+        if (t.note || t.color) {
+          const dotHtml = t.color ? `<span class="color-dot-bookmark" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${getBookmarkHex(t.color)}; flex-shrink:0;"></span>` : '';
+          const noteHtml = t.note ? `<span class="txn-note-val">${t.note}</span>` : '';
+          noteContainer = `<div style="display:flex; align-items:center; gap:6px; margin-top:2px;">${dotHtml}${noteHtml}</div>`;
+        }
+
         div.innerHTML = `
       <div class="txn-view" style="${viewCols}" onclick="${msMode ? `toggleSelect(${t.id}, event)` : `toggleExpandTxn(${t.id})`}">
         ${cbHtml}
         <span class="txn-type ${t.type}">${t.type === 'W' ? 'ถอน' : 'ฝาก'}</span>
         <div class="txn-view-info">
           <span class="txn-date-val">${fd(d)}</span>
-          ${t.note ? `<span class="txn-note-val">${t.note}</span>` : ''}
+          ${noteContainer}
         </div>
         <span class="txn-amt-val">${t.type === 'W' ? '-' : '+'}${fn(t.amount)}</span>
         <button class="btn-del" onclick="delTxn(${t.id}, event)">✕</button>
@@ -2837,6 +2986,19 @@
         <div class="txn-edit-row"><span class="txn-edit-label">วันที่</span><input type="date" value="${t.date}" onchange="updateTxn(${t.id},'date',this.value)"></div>
         <div class="txn-edit-row"><span class="txn-edit-label">จำนวน</span><input type="number" value="${t.amount}" inputmode="decimal" min="0" step="100" style="text-align:right" onchange="updateTxn(${t.id},'amount',+this.value)"></div>
         <div class="txn-edit-row"><span class="txn-edit-label">หมายเหตุ</span><input type="text" placeholder="ระบุ (ถ้ามี)" value="${t.note || ''}" onchange="updateTxn(${t.id},'note',this.value)"></div>
+        <div class="txn-edit-row">
+          <span class="txn-edit-label">บุ๊คมาร์ก</span>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <div class="color-dot red ${t.color === 'red' ? 'selected' : ''}" onclick="updateTxn(${t.id},'color','red')" title="สีแดง" style="width:16px; height:16px; border-radius:50%; background:#ef4444; cursor:pointer; border:1px solid transparent;"></div>
+            <div class="color-dot orange ${t.color === 'orange' ? 'selected' : ''}" onclick="updateTxn(${t.id},'color','orange')" title="สีส้ม" style="width:16px; height:16px; border-radius:50%; background:#f97316; cursor:pointer; border:1px solid transparent;"></div>
+            <div class="color-dot yellow ${t.color === 'yellow' ? 'selected' : ''}" onclick="updateTxn(${t.id},'color','yellow')" title="สีเหลือง" style="width:16px; height:16px; border-radius:50%; background:#eab308; cursor:pointer; border:1px solid transparent;"></div>
+            <div class="color-dot green ${t.color === 'green' ? 'selected' : ''}" onclick="updateTxn(${t.id},'color','green')" title="สีเขียว" style="width:16px; height:16px; border-radius:50%; background:#22c55e; cursor:pointer; border:1px solid transparent;"></div>
+            <div class="color-dot purple ${t.color === 'purple' ? 'selected' : ''}" onclick="updateTxn(${t.id},'color','purple')" title="สีม่วง" style="width:16px; height:16px; border-radius:50%; background:#a855f7; cursor:pointer; border:1px solid transparent;"></div>
+            <div class="color-dot blue ${t.color === 'blue' ? 'selected' : ''}" onclick="updateTxn(${t.id},'color','blue')" title="สีน้ำเงิน" style="width:16px; height:16px; border-radius:50%; background:#3b82f6; cursor:pointer; border:1px solid transparent;"></div>
+            <div class="color-dot magenta ${t.color === 'magenta' ? 'selected' : ''}" onclick="updateTxn(${t.id},'color','magenta')" title="สีบานเย็น" style="width:16px; height:16px; border-radius:50%; background:#d946ef; cursor:pointer; border:1px solid transparent;"></div>
+            <div class="color-dot none ${!t.color ? 'selected' : ''}" onclick="updateTxn(${t.id},'color','')" title="ไม่ระบุ" style="width:16px; height:16px; border-radius:50%; background:var(--surface2); cursor:pointer; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:8px; color:var(--text3);">✕</div>
+          </div>
+        </div>
       </div>
     `;
         list.appendChild(div);
@@ -2898,7 +3060,7 @@
       document.getElementById('total-rate-display').textContent = rateTotal;
       document.getElementById('rate-badge').textContent = rateTotal + '%';
 
-      let evs = []; txns.forEach(t => evs.push({ date: fromDateStr(t.date), type: t.type, amt: t.amount, note: t.note }));
+      let evs = []; txns.forEach(t => evs.push({ date: fromDateStr(t.date), type: t.type, amt: t.amount, note: t.note, color: t.color }));
       if (evs.length === 0) { renderTable([], 0, 0, 0, null, RATE); return; }
 
       // Check if there are any withdrawals — if not, no debt simulation needed
@@ -2967,18 +3129,18 @@
           if (debt > 0 || segs.length > 0) { debt = Math.round((debt + intSum) * 100) / 100; totalInt += intSum; rows.push({ date: ed, type: 'I', dep: 0, wit: 0, bal: debt, segs, intAmt: intSum }); btaInterestOffset = intSum; }
         } else if (ev.type === 'W') {
           closeSeg(ed, false); debt = Math.round((debt + ev.amt) * 100) / 100; totalWith += ev.amt;
-          rows.push({ date: ed, type: 'W', dep: 0, wit: ev.amt, bal: debt, segs: [], intAmt: null, note: ev.note });
+          rows.push({ date: ed, type: 'W', dep: 0, wit: ev.amt, bal: debt, segs: [], intAmt: null, note: ev.note, color: ev.color });
           lastDate = (lastDate && lastDate > ed) ? lastDate : ed; // Never go backwards
         } else if (ev.type === 'D') {
           if (debt <= 0) {
             totalDep += ev.amt;
-            rows.push({ date: ed, type: 'D', dep: ev.amt, wit: 0, bal: 0, segs: [], intAmt: null, note: ev.note });
+            rows.push({ date: ed, type: 'D', dep: ev.amt, wit: 0, bal: 0, segs: [], intAmt: null, note: ev.note, color: ev.color });
             lastDate = (lastDate && lastDate > ed) ? lastDate : ed;
             continue;
           }
           closeSeg(ed, false); let dep = ev.amt;
-          if (dep >= debt) { dep = Math.round(debt * 100) / 100; debt = 0; totalDep += dep; rows.push({ date: ed, type: 'F', dep, wit: 0, bal: 0, segs: [], intAmt: null, note: ev.note }); closedDate = ed; done = true; }
-          else { debt = Math.round((debt - dep) * 100) / 100; totalDep += dep; rows.push({ date: ed, type: 'D', dep, wit: 0, bal: debt, segs: [], intAmt: null, note: ev.note }); lastDate = (lastDate && lastDate > ed) ? lastDate : ed; }
+          if (dep >= debt) { dep = Math.round(debt * 100) / 100; debt = 0; totalDep += dep; rows.push({ date: ed, type: 'F', dep, wit: 0, bal: 0, segs: [], intAmt: null, note: ev.note, color: ev.color }); closedDate = ed; done = true; }
+          else { debt = Math.round((debt - dep) * 100) / 100; totalDep += dep; rows.push({ date: ed, type: 'D', dep, wit: 0, bal: debt, segs: [], intAmt: null, note: ev.note, color: ev.color }); lastDate = (lastDate && lastDate > ed) ? lastDate : ed; }
         }
       }
       renderTable(rows, totalInt, totalDep, totalWith, closedDate, RATE);
@@ -3085,7 +3247,10 @@
         let tr = document.createElement('tr'); tr.className = `row-${r.type}`;
         tr.dataset.date = toDateStr(r.date);
         let label = { W: 'ถอน', I: 'ดอกเบี้ย', D: 'ฝาก', F: 'ปิดบัญชี ✓' }[r.type];
-        if (r.note) label += ` <span style="font-size:9px;opacity:.7">(${r.note})</span>`;
+        if (r.note || r.color) {
+          const dotHtml = r.color ? `<span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:${getBookmarkHex(r.color)}; margin-right:4px; vertical-align:middle;"></span>` : '';
+          label += ` <span style="font-size:9px;opacity:.7;display:inline-flex;align-items:center;">(${dotHtml}${r.note || ''})</span>`;
+        }
 
         let colDate = `<td class="sticky-col col-date mono">${fd(r.date)}</td>`;
         let colWit = `<td class="sticky-col col-wit mono">${r.wit > 0 ? fn(r.wit) : '-'}</td>`;
@@ -3148,6 +3313,9 @@
     window.toggleAddTxnModal = toggleAddTxnModal;
     window.updateAddTxnPreview = updateAddTxnPreview;
     window.confirmAddTxn = confirmAddTxn;
+    window.selectAddTxnColor = selectAddTxnColor;
+    window.selectRecColor = selectRecColor;
+    window.toggleShowSelectedOnly = toggleShowSelectedOnly;
     window.exportCSV = exportCSV;
 
     function scrollToCurrentDateTxn() {
@@ -3693,12 +3861,18 @@
         if (t.type === 'W') sumW += t.amount;
         if (t.type === 'D') sumD += t.amount;
 
+        const dotHtml = t.color ? `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${getBookmarkHex(t.color)}; flex-shrink:0; vertical-align:middle; margin-right:4px;"></span>` : '';
+        const noteHtml = t.note ? `<span class="calendar-details-item-note">${t.note}</span>` : '<span class="calendar-details-item-note">—</span>';
+
         const item = document.createElement('div');
         item.className = 'calendar-details-item';
         item.innerHTML = `
           <div class="calendar-details-item-left">
             <span class="calendar-details-item-type ${t.type}">${t.type === 'W' ? 'ถอน' : 'ฝาก'}</span>
-            ${t.note ? `<span class="calendar-details-item-note">${t.note}</span>` : '<span class="calendar-details-item-note">—</span>'}
+            <div style="display:inline-flex; align-items:center;">
+              ${dotHtml}
+              ${noteHtml}
+            </div>
           </div>
           <span class="calendar-details-item-amt ${t.type}">${t.type === 'W' ? '-' : '+'}${fn(t.amount)} บ.</span>
         `;
