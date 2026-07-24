@@ -843,6 +843,41 @@
       box-shadow: 0 0 0 2px var(--surface), 0 0 6px rgba(0, 0, 0, 0.3);
     }
 
+    .int-full-number {
+      border-bottom: 1px dashed var(--warn);
+      position: relative;
+      cursor: pointer;
+      display: inline-block;
+    }
+
+    .int-full-number::after {
+      content: attr(data-full);
+      position: absolute;
+      bottom: 125%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e293b;
+      color: #38bdf8;
+      border: 1px solid var(--border);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-family: var(--mono);
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.2s ease, visibility 0.2s ease;
+      z-index: 10000;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    .int-full-number:hover::after,
+    .int-full-number.active-touch::after {
+      opacity: 1;
+      visibility: visible;
+    }
+
     @keyframes fadeIn {
       from {
         opacity: 0;
@@ -2183,11 +2218,39 @@
     const mthFull = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
     const fd = d => `${d.getDate()} ${mthShort[d.getMonth()]} ${String(d.getFullYear() + 543).slice(-2)}`;
     const fn = n => Math.abs(n).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fn5 = n => Math.abs(n).toLocaleString('th-TH', { minimumFractionDigits: 5, maximumFractionDigits: 5 });
     const dbDiff = (a, b) => Math.round((b - a) / 86400000);
     const isLeap = y => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
     const diy = y => isLeap(y) ? 366 : 365;
     const toDateStr = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const fromDateStr = s => { let p = s.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); };
+
+    function initIntTouchHandlers() {
+      let touchTimer = null;
+      document.addEventListener('touchstart', function(e) {
+        const target = e.target.closest('.int-full-number');
+        if (target) {
+          touchTimer = setTimeout(() => {
+            document.querySelectorAll('.int-full-number').forEach(el => el.classList.remove('active-touch'));
+            target.classList.add('active-touch');
+            if (navigator.vibrate) navigator.vibrate(40);
+          }, 300);
+        }
+      }, { passive: true });
+
+      document.addEventListener('touchend', function(e) {
+        if (touchTimer) clearTimeout(touchTimer);
+        setTimeout(() => {
+          document.querySelectorAll('.int-full-number').forEach(el => el.classList.remove('active-touch'));
+        }, 1500);
+      });
+
+      document.addEventListener('touchcancel', function(e) {
+        if (touchTimer) clearTimeout(touchTimer);
+        document.querySelectorAll('.int-full-number').forEach(el => el.classList.remove('active-touch'));
+      });
+    }
+    initIntTouchHandlers();
 
     // === Core Logic Functions ===
     const initDefaults = () => {
@@ -3088,6 +3151,11 @@
       // interest uses the post-transaction balance as BTA ref.
       const pri = { W: 0, D: 1, I: 2 }; evs.sort((a, b) => a.date - b.date || pri[a.type] - pri[b.type]);
 
+      const txnDates = new Set(
+        evs.filter(e => e.type === 'W' || e.type === 'D')
+           .map(e => e.date.getTime())
+      );
+
       let debt = 0, lastDate = null, pendingSegs = [], btaInterestOffset = 0;
       let rows = [], totalInt = 0, totalDep = 0, totalWith = 0; let closedDate = null, done = false;
 
@@ -3125,8 +3193,9 @@
           if (pendingSegs.length === 0 && debt === 0) continue;
           let intSum = 0;
           for (let s of pendingSegs) { s.intAmt = s.debt * RATE * s.days / 365; intSum += s.intAmt; } // BTA logic: always ÷365
+          let rawIntSum = intSum;
           intSum = Math.round(intSum * 100) / 100; let segs = [...pendingSegs]; pendingSegs = [];
-          if (debt > 0 || segs.length > 0) { debt = Math.round((debt + intSum) * 100) / 100; totalInt += intSum; rows.push({ date: ed, type: 'I', dep: 0, wit: 0, bal: debt, segs, intAmt: intSum }); btaInterestOffset = intSum; }
+          if (debt > 0 || segs.length > 0) { debt = Math.round((debt + intSum) * 100) / 100; totalInt += intSum; rows.push({ date: ed, type: 'I', dep: 0, wit: 0, bal: debt, segs, intAmt: intSum, rawIntAmt: rawIntSum }); btaInterestOffset = txnDates.has(ed.getTime()) ? 0 : intSum; }
         } else if (ev.type === 'W') {
           closeSeg(ed, false); debt = Math.round((debt + ev.amt) * 100) / 100; totalWith += ev.amt;
           rows.push({ date: ed, type: 'W', dep: 0, wit: ev.amt, bal: debt, segs: [], intAmt: null, note: ev.note, color: ev.color });
@@ -3262,7 +3331,10 @@
             rng.push(`${fd(s.from)}–${fd(s.to)}`); dys.push(`${s.days}`);
             fml.push(`(${fn(s.debt)}×${rateStr}%×${s.days})/365`); // BTA logic: always ÷365
           }
-          let intDisp = r.segs.length > 1 ? `${fn(r.intAmt)}<br><small style="opacity:.7;font-family:var(--sans)">${r.segs.length} ช่วง · BTA÷365</small>` : `${fn(r.intAmt)}<br><small style="opacity:.7;font-family:var(--sans)">BTA÷365</small>`;
+          const rawVal = r.rawIntAmt !== undefined ? r.rawIntAmt : r.intAmt;
+          const fullIntText = `ดอกเบี้ยเต็ม (5 ตำแหน่ง): ${fn5(rawVal)} บาท`;
+          const intSpan = `<span class="int-full-number" data-full="${fn5(rawVal)} บ." title="${fullIntText}">${fn(r.intAmt)}</span>`;
+          let intDisp = r.segs.length > 1 ? `${intSpan}<br><small style="opacity:.7;font-family:var(--sans)">${r.segs.length} ช่วง · BTA÷365</small>` : `${intSpan}<br><small style="opacity:.7;font-family:var(--sans)">BTA÷365</small>`;
           let colInt = `<td class="sticky-col col-int mono">${intDisp}</td>`;
           tr.innerHTML = `${colDate}${colWit}${colDep}${colInt}<td>${label}</td><td class="mono" style="text-align:right">${fn(r.bal)}</td><td style="font-size:10px;line-height:1.6">${rng.join('<br>')}</td><td class="mono" style="text-align:right;line-height:1.6">${dys.join('<br>')}</td><td style="font-size:10px;line-height:1.6">${fml.join('<br>')}</td>`;
         } else {
