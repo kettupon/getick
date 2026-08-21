@@ -298,16 +298,16 @@
                     </div>
                     <div>
                         <label class="block text-[11px] font-bold text-slate-400 uppercase mb-1 tracking-wider">วงเงิน</label>
-                        <input type="number" id="m-card-limit" placeholder="0.00" class="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-orange-500">
+                        <input type="number" inputmode="decimal" step="any" id="m-card-limit" placeholder="0.00" class="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-orange-500">
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-[11px] font-bold text-slate-400 uppercase mb-1 tracking-wider">วันตัดรอบ</label>
-                            <input type="number" id="m-card-cycle" min="1" max="31" class="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-orange-500">
+                            <input type="number" inputmode="numeric" pattern="[0-9]*" id="m-card-cycle" min="1" max="31" class="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-orange-500">
                         </div>
                         <div>
                             <label class="block text-[11px] font-bold text-slate-400 uppercase mb-1 tracking-wider">วันจ่าย</label>
-                            <input type="number" id="m-card-due" min="1" max="31" class="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-orange-500">
+                            <input type="number" inputmode="numeric" pattern="[0-9]*" id="m-card-due" min="1" max="31" class="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-orange-500">
                         </div>
                     </div>
                 </div>
@@ -349,7 +349,7 @@
                 </div>
                 <div id="pay-custom-input" class="hidden mb-3">
                     <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase">ระบุยอดที่จ่ายจริง (฿)</label>
-                    <input type="number" id="pay-amount-input" placeholder="0.00"
+                    <input type="number" inputmode="decimal" step="any" id="pay-amount-input" placeholder="0.00"
                         class="w-full border-b-2 border-orange-400 py-2 text-2xl font-bold outline-none text-slate-800">
                 </div>
 
@@ -1477,7 +1477,7 @@
             const stateClass = isFull ? 'bill-card-full' : hasAmount ? 'bill-card-partial' : '';
             const el = document.createElement('div');
             el.className = `bg-white p-5 rounded-2xl border border-slate-100 shadow-sm ${stateClass}`;
-            el.innerHTML = `<div class="flex justify-between items-center mb-4"><p class="font-bold text-slate-800">${card.name}</p><div class="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-full border border-slate-100"><span class="text-[10px] font-bold text-slate-400">วันจ่ายจริง:</span><input type="number" value="${b.actualDue}" class="actual-due-input w-6 bg-transparent text-xs font-bold shopee-orange outline-none text-center"></div></div><div class="grid grid-cols-2 gap-4"><div><label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase">ยอดที่ใช้ (฿)</label><input type="number" value="${b.max||''}" placeholder="0.00" class="max-input w-full border-b border-slate-200 py-1 text-lg font-bold outline-none focus:border-orange-500"></div><div class="flex items-center justify-end pt-3"><label class="flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer select-none"><input type="checkbox" ${b.paid?'checked':''} class="paid-check w-4 h-4 accent-orange-500">ชำระแล้ว</label></div></div>`;
+            el.innerHTML = `<div class="flex justify-between items-center mb-4"><p class="font-bold text-slate-800">${card.name}</p><div class="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-full border border-slate-100"><span class="text-[10px] font-bold text-slate-400">วันจ่ายจริง:</span><input type="number" inputmode="numeric" pattern="[0-9]*" min="1" max="31" value="${b.actualDue}" class="actual-due-input w-6 bg-transparent text-xs font-bold shopee-orange outline-none text-center"></div></div><div class="grid grid-cols-2 gap-4"><div><label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase">ยอดที่ใช้ (฿)</label><input type="number" inputmode="decimal" step="any" value="${b.max||''}" placeholder="0.00" class="max-input w-full border-b border-slate-200 py-1 text-lg font-bold outline-none focus:border-orange-500"></div><div class="flex items-center justify-end pt-3"><label class="flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer select-none"><input type="checkbox" ${b.paid?'checked':''} class="paid-check w-4 h-4 accent-orange-500">ชำระแล้ว</label></div></div>`;
             el.querySelector('.actual-due-input').onchange = e => saveBill(card.name, 'actualDue', e.target.value);
             el.querySelector('.max-input').onchange        = e => saveBill(card.name, 'max',       e.target.value);
             el.querySelector('.paid-check').onchange       = e => {
