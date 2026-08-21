@@ -387,7 +387,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, collection, addDoc, onSnapshot, query, doc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-    import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+    import { getStorage, ref, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
     const rawConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
     const firebaseConfig = {
@@ -428,6 +428,7 @@
     const IconUpload = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>;
     const IconPlay = () => <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="rgba(255,255,255,0.9)" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>;
     const IconMaximize = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>;
+    const IconGrid = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>;
 
     // --- UI Components ---
     const BrutalButton = ({ children, onClick, color = "bg-white", className = "", icon: Icon, disabled = false, title }) => (
@@ -527,6 +528,8 @@
         const clipboardInputRef = useRef(null);
 
         const [uploading, setUploading] = useState(false);
+        const [uploadProgressList, setUploadProgressList] = useState([]);
+        const [is5ColGrid, setIs5ColGrid] = useState(false);
         const [lightboxItem, setLightboxItem] = useState(null); 
         
         const [formData, setFormData] = useState({ title: '', description: '', appVersion: '', fileLocate: '' });
@@ -660,20 +663,84 @@
         };
 
         const handleFileUpload = async (e) => {
-            const file = e.target.files[0];
-            if (!file || !user) return;
+            const files = Array.from(e.target.files || []);
+            if (files.length === 0 || !user) return;
+            
+            const fileInput = e.target;
             setUploading(true);
-            try {
-                const fileName = `${Date.now()}_${file.name}`;
-                const storageRef = ref(storage, `artifacts/${appId}/public/${fileName}`);
-                await uploadBytes(storageRef, file);
-                const downloadURL = await getDownloadURL(storageRef);
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'media'), {
-                    url: downloadURL, name: file.name, type: file.type, size: file.size,
-                    timestamp: serverTimestamp(), createdBy: user.uid, storagePath: `artifacts/${appId}/public/${fileName}`
+
+            const initialProgress = files.map((file, idx) => ({
+                id: `${Date.now()}_${idx}`,
+                name: file.name,
+                size: file.size,
+                progress: 0,
+                status: 'uploading'
+            }));
+
+            setUploadProgressList(initialProgress);
+
+            const uploadPromises = files.map((file, idx) => {
+                return new Promise((resolve) => {
+                    const taskId = initialProgress[idx].id;
+                    const fileName = `${Date.now()}_${idx}_${file.name}`;
+                    const storageRef = ref(storage, `artifacts/${appId}/public/${fileName}`);
+                    const uploadTask = uploadBytesResumable(storageRef, file);
+
+                    uploadTask.on(
+                        'state_changed',
+                        (snapshot) => {
+                            const percent = snapshot.totalBytes > 0 
+                                ? Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100) 
+                                : 0;
+                            setUploadProgressList((prev) =>
+                                prev.map((item) =>
+                                    item.id === taskId ? { ...item, progress: percent } : item
+                                )
+                            );
+                        },
+                        (error) => {
+                            console.error("Upload failed for file:", file.name, error);
+                            setUploadProgressList((prev) =>
+                                prev.map((item) =>
+                                    item.id === taskId ? { ...item, status: 'error', error: error.message } : item
+                                )
+                            );
+                            resolve();
+                        },
+                        async () => {
+                            try {
+                                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'media'), {
+                                    url: downloadURL,
+                                    name: file.name,
+                                    type: file.type,
+                                    size: file.size,
+                                    timestamp: serverTimestamp(),
+                                    createdBy: user.uid,
+                                    storagePath: `artifacts/${appId}/public/${fileName}`
+                                });
+                                setUploadProgressList((prev) =>
+                                    prev.map((item) =>
+                                        item.id === taskId ? { ...item, progress: 100, status: 'completed' } : item
+                                    )
+                                );
+                            } catch (err) {
+                                console.error("Error saving media doc:", err);
+                                setUploadProgressList((prev) =>
+                                    prev.map((item) =>
+                                        item.id === taskId ? { ...item, status: 'error', error: err.message } : item
+                                    )
+                                );
+                            }
+                            resolve();
+                        }
+                    );
                 });
-            } catch (error) { alert("Upload failed."); } 
-            finally { setUploading(false); }
+            });
+
+            await Promise.all(uploadPromises);
+            setUploading(false);
+            if (fileInput) fileInput.value = '';
         };
 
         if (loading) {
@@ -834,39 +901,160 @@
                                 <div className="bg-white p-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"><IconImage /></div>
                                 <div className="flex-grow">
                                     <h2 className="text-2xl font-black uppercase">Media Gallery</h2>
-                                    <p className="font-mono text-sm">Videos load low-bandwidth posters. Click any item to view Full Quality.</p>
+                                    <p className="font-mono text-sm">Videos load low-bandwidth posters. Select multiple images/videos to upload.</p>
                                 </div>
-                                <div className="w-full md:w-auto">
-                                    <label className={`block w-full cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                                <div className="w-full md:w-auto flex items-center gap-3">
+                                    <button
+                                        onClick={() => setIs5ColGrid(!is5ColGrid)}
+                                        title={is5ColGrid ? "Switch to Detail Cards" : "Switch to 5-Column Square Grid"}
+                                        className={`p-3.5 border-4 border-black font-black uppercase flex items-center justify-center transition-all brutal-btn-active shrink-0 ${
+                                            is5ColGrid ? 'bg-yellow-400 text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' : 'bg-white text-black hover:bg-cyan-50 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'
+                                        }`}
+                                    >
+                                        <IconGrid />
+                                    </button>
+                                    <label className={`block flex-grow md:flex-initial cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
                                         <div className="bg-white border-4 border-black border-dashed p-4 flex flex-col items-center justify-center gap-2 hover:bg-cyan-50 transition-colors">
-                                            {uploading ? <span className="font-black animate-pulse">UPLOADING...</span> : <><div className="flex items-center gap-2 font-black uppercase"><IconUpload /> Upload Media</div><span className="text-xs text-gray-500">Supports IMG/VID</span></>}
+                                            {uploading ? <span className="font-black animate-pulse">UPLOADING...</span> : <><div className="flex items-center gap-2 font-black uppercase"><IconUpload /> Upload Media</div><span className="text-xs text-gray-500">Select Multiple IMG/VID</span></>}
                                         </div>
-                                        <input type="file" accept="image/*,video/*" className="hidden" onChange={handleFileUpload} disabled={uploading}/>
+                                        <input type="file" accept="image/*,video/*" multiple className="hidden" onChange={handleFileUpload} disabled={uploading}/>
                                     </label>
                                 </div>
                             </div>
                         </BrutalCard>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {mediaItems.length === 0 && <div className="col-span-full border-4 border-dashed border-gray-400 p-12 text-center text-gray-500 font-bold uppercase text-xl">Gallery is empty.</div>}
-                            {mediaItems.map(item => (
-                                <BrutalCard key={item.id} className="p-0 overflow-hidden flex flex-col bg-white">
-                                    <div className="border-b-4 border-black relative bg-gray-100 aspect-video flex items-center justify-center group cursor-pointer overflow-hidden" onClick={() => setLightboxItem(item)}>
-                                        {item.type.startsWith('video') ? (
-                                            <><video src={`${item.url}#t=0.5`} preload="metadata" className="w-full h-full object-cover opacity-80"/><div className="absolute inset-0 flex items-center justify-center media-overlay"><div className="transform transition-transform group-hover:scale-125"><IconPlay /></div></div></>
+
+                        {uploadProgressList.length > 0 && (
+                            <BrutalCard className="mb-8 bg-white border-black">
+                                <div className="flex justify-between items-center mb-3">
+                                    <div className="flex items-center gap-3">
+                                        {uploading ? (
+                                            <div className="animate-spin h-5 w-5 border-4 border-black border-t-transparent rounded-full"></div>
                                         ) : (
-                                            <><img src={item.url} alt={item.name} className="w-full h-full object-cover" loading="lazy"/><div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 media-overlay transition-opacity"><div className="bg-white border-2 border-black p-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"><IconMaximize /></div></div></>
+                                            <div className="bg-green-400 border-2 border-black p-1 text-black"><IconCheck /></div>
                                         )}
-                                    </div>
-                                    <div className="p-3 flex justify-between items-start gap-2">
-                                        <div className="overflow-hidden">
-                                            <p className="font-bold text-xs truncate uppercase" title={item.name}>{item.name}</p>
-                                            <p className="text-[10px] text-gray-500 font-mono mt-1">{(item.size / 1024 / 1024).toFixed(2)} MB</p>
+                                        <div>
+                                            <h3 className="font-black text-lg uppercase leading-none">
+                                                {uploading
+                                                    ? `Uploading (${uploadProgressList.filter(f => f.status === 'completed').length}/${uploadProgressList.length} Complete)`
+                                                    : `Upload Finished (${uploadProgressList.length} Files)`
+                                                }
+                                            </h3>
+                                            <p className="text-xs font-mono text-gray-600 mt-1">
+                                                {Math.round(uploadProgressList.reduce((sum, item) => sum + item.progress, 0) / uploadProgressList.length)}% Total Progress
+                                            </p>
                                         </div>
-                                        <button onClick={(e) => { e.stopPropagation(); handlePermanentDelete(item.id, 'media'); }} className="bg-red-500 text-white p-2 border-2 border-black hover:bg-red-600 transition-colors shrink-0" title="Delete Permanently"><IconTrash /></button>
                                     </div>
-                                </BrutalCard>
-                            ))}
-                        </div>
+                                    {!uploading && (
+                                        <button
+                                            onClick={() => setUploadProgressList([])}
+                                            className="text-xs font-black uppercase bg-gray-200 hover:bg-gray-300 border-2 border-black px-3 py-1 brutal-btn-active"
+                                        >
+                                            Dismiss
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Overall Progress Bar */}
+                                <div className="w-full bg-gray-200 border-2 border-black h-4 mb-4 relative overflow-hidden">
+                                    <div
+                                        className="bg-yellow-400 h-full transition-all duration-200"
+                                        style={{
+                                            width: `${Math.round(
+                                                uploadProgressList.reduce((sum, item) => sum + item.progress, 0) / uploadProgressList.length
+                                            )}%`
+                                        }}
+                                    ></div>
+                                </div>
+
+                                {/* Individual File Progress List */}
+                                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                                    {uploadProgressList.map((item) => (
+                                        <div key={item.id} className="bg-gray-50 border-2 border-black p-2 font-mono text-xs">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className="font-bold truncate max-w-[220px] md:max-w-md">{item.name}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[10px] text-gray-500">{(item.size / 1024 / 1024).toFixed(2)} MB</span>
+                                                    {item.status === 'completed' && <span className="text-green-600 font-bold">✓ 100%</span>}
+                                                    {item.status === 'error' && <span className="text-red-600 font-bold">FAILED</span>}
+                                                    {item.status === 'uploading' && <span className="font-bold text-blue-600">{item.progress}%</span>}
+                                                </div>
+                                            </div>
+                                            <div className="w-full bg-gray-200 border border-black h-2 overflow-hidden">
+                                                <div
+                                                    className={`h-full transition-all duration-150 ${
+                                                        item.status === 'error'
+                                                            ? 'bg-red-500'
+                                                            : item.status === 'completed'
+                                                            ? 'bg-green-500'
+                                                            : 'bg-cyan-400'
+                                                    }`}
+                                                    style={{ width: `${item.progress}%` }}
+                                                ></div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </BrutalCard>
+                        )}
+
+                        {is5ColGrid ? (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                                {mediaItems.length === 0 && <div className="col-span-full border-4 border-dashed border-gray-400 p-12 text-center text-gray-500 font-bold uppercase text-xl">Gallery is empty.</div>}
+                                {mediaItems.map(item => (
+                                    <div 
+                                        key={item.id} 
+                                        className="border-4 border-black bg-white aspect-square relative group cursor-pointer overflow-hidden brutal-shadow hover:-translate-y-1 transition-transform" 
+                                        onClick={() => setLightboxItem(item)}
+                                        title={item.name}
+                                    >
+                                        {item.type.startsWith('video') ? (
+                                            <>
+                                                <video src={`${item.url}#t=0.5`} preload="metadata" className="w-full h-full object-cover opacity-90"/>
+                                                <div className="absolute inset-0 flex items-center justify-center media-overlay">
+                                                    <div className="transform transition-transform group-hover:scale-125">
+                                                        <IconPlay />
+                                                    </div>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <img src={item.url} alt={item.name} className="w-full h-full object-cover" loading="lazy"/>
+                                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 media-overlay transition-opacity">
+                                                    <div className="bg-white border-2 border-black p-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                                                        <IconMaximize />
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
+                                        <div className="absolute bottom-0 inset-x-0 bg-black/80 text-white p-1 text-[10px] font-mono truncate opacity-0 group-hover:opacity-100 transition-opacity">
+                                            {item.name}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {mediaItems.length === 0 && <div className="col-span-full border-4 border-dashed border-gray-400 p-12 text-center text-gray-500 font-bold uppercase text-xl">Gallery is empty.</div>}
+                                {mediaItems.map(item => (
+                                    <BrutalCard key={item.id} className="p-0 overflow-hidden flex flex-col bg-white">
+                                        <div className="border-b-4 border-black relative bg-gray-100 aspect-video flex items-center justify-center group cursor-pointer overflow-hidden" onClick={() => setLightboxItem(item)}>
+                                            {item.type.startsWith('video') ? (
+                                                <><video src={`${item.url}#t=0.5`} preload="metadata" className="w-full h-full object-cover opacity-80"/><div className="absolute inset-0 flex items-center justify-center media-overlay"><div className="transform transition-transform group-hover:scale-125"><IconPlay /></div></div></>
+                                            ) : (
+                                                <><img src={item.url} alt={item.name} className="w-full h-full object-cover" loading="lazy"/><div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 media-overlay transition-opacity"><div className="bg-white border-2 border-black p-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"><IconMaximize /></div></div></>
+                                            )}
+                                        </div>
+                                        <div className="p-3 flex justify-between items-start gap-2">
+                                            <div className="overflow-hidden">
+                                                <p className="font-bold text-xs truncate uppercase" title={item.name}>{item.name}</p>
+                                                <p className="text-[10px] text-gray-500 font-mono mt-1">{(item.size / 1024 / 1024).toFixed(2)} MB</p>
+                                            </div>
+                                            <button onClick={(e) => { e.stopPropagation(); handlePermanentDelete(item.id, 'media'); }} className="bg-red-500 text-white p-2 border-2 border-black hover:bg-red-600 transition-colors shrink-0" title="Delete Permanently"><IconTrash /></button>
+                                        </div>
+                                    </BrutalCard>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
 
