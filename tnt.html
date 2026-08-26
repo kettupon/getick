@@ -837,10 +837,20 @@
       transition: all 0.2s ease;
     }
 
+    .color-dot.black {
+      background: #1a1916 !important;
+      border: 1px solid rgba(0, 0, 0, 0.25);
+    }
+
     .color-dot.selected {
       transform: scale(1.2);
       border-color: var(--text) !important;
       box-shadow: 0 0 0 2px var(--surface), 0 0 6px rgba(0, 0, 0, 0.3);
+    }
+
+    .color-dot.black.selected {
+      border-color: var(--accent) !important;
+      box-shadow: 0 0 0 2px var(--surface), 0 0 6px rgba(0, 0, 0, 0.5);
     }
 
     .int-full-number {
@@ -1887,7 +1897,8 @@
         </div>
         <div>
           <div style="font-size:11px; color:var(--text2); margin-bottom:4px;">บุ๊คมาร์กสี (Bookmark Color)</div>
-          <div class="color-picker-dots-rec" style="display: flex; gap: 12px; margin-top: 6px; align-items: center;">
+          <div class="color-picker-dots-rec" style="display: flex; gap: 12px; margin-top: 6px; align-items: center; flex-wrap: wrap;">
+            <div class="color-dot black" onclick="selectRecColor('black')" title="สีดำ (วันเงินเดือนออก / ตัดรอบ)" style="width: 24px; height: 24px; border-radius: 50%; background: #1a1916; cursor: pointer; border: 2px solid transparent; transition: all 0.2s;"></div>
             <div class="color-dot red" onclick="selectRecColor('red')" title="สีแดง" style="width: 24px; height: 24px; border-radius: 50%; background: #ef4444; cursor: pointer; border: 2px solid transparent; transition: all 0.2s;"></div>
             <div class="color-dot orange" onclick="selectRecColor('orange')" title="สีส้ม" style="width: 24px; height: 24px; border-radius: 50%; background: #f97316; cursor: pointer; border: 2px solid transparent; transition: all 0.2s;"></div>
             <div class="color-dot yellow" onclick="selectRecColor('yellow')" title="สีเหลือง" style="width: 24px; height: 24px; border-radius: 50%; background: #eab308; cursor: pointer; border: 2px solid transparent; transition: all 0.2s;"></div>
@@ -2039,7 +2050,8 @@
       </div>
       <div class="field-group">
         <label>บุ๊คมาร์กสี (Bookmark Color)</label>
-        <div class="color-picker-dots" style="display: flex; gap: 12px; margin-top: 6px; align-items: center;">
+        <div class="color-picker-dots" style="display: flex; gap: 12px; margin-top: 6px; align-items: center; flex-wrap: wrap;">
+          <div class="color-dot black" onclick="selectAddTxnColor('black')" title="สีดำ (วันเงินเดือนออก / ตัดรอบ)" style="width: 24px; height: 24px; border-radius: 50%; background: #1a1916; cursor: pointer; border: 2px solid transparent; transition: all 0.2s;"></div>
           <div class="color-dot red" onclick="selectAddTxnColor('red')" title="สีแดง" style="width: 24px; height: 24px; border-radius: 50%; background: #ef4444; cursor: pointer; border: 2px solid transparent; transition: all 0.2s;"></div>
           <div class="color-dot orange" onclick="selectAddTxnColor('orange')" title="สีส้ม" style="width: 24px; height: 24px; border-radius: 50%; background: #f97316; cursor: pointer; border: 2px solid transparent; transition: all 0.2s;"></div>
           <div class="color-dot yellow" onclick="selectAddTxnColor('yellow')" title="สีเหลือง" style="width: 24px; height: 24px; border-radius: 50%; background: #eab308; cursor: pointer; border: 2px solid transparent; transition: all 0.2s;"></div>
@@ -2175,6 +2187,7 @@
 
     function getBookmarkHex(color) {
       const colors = {
+        black: '#1a1916',
         red: '#ef4444',
         orange: '#f97316',
         yellow: '#eab308',
@@ -3051,7 +3064,8 @@
         <div class="txn-edit-row"><span class="txn-edit-label">หมายเหตุ</span><input type="text" placeholder="ระบุ (ถ้ามี)" value="${t.note || ''}" onchange="updateTxn(${t.id},'note',this.value)"></div>
         <div class="txn-edit-row">
           <span class="txn-edit-label">บุ๊คมาร์ก</span>
-          <div style="display:flex; gap:8px; align-items:center;">
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <div class="color-dot black ${t.color === 'black' ? 'selected' : ''}" onclick="updateTxn(${t.id},'color','black')" title="สีดำ (วันเงินเดือนออก / ตัดรอบ)" style="width:16px; height:16px; border-radius:50%; background:#1a1916; cursor:pointer; border:1px solid transparent;"></div>
             <div class="color-dot red ${t.color === 'red' ? 'selected' : ''}" onclick="updateTxn(${t.id},'color','red')" title="สีแดง" style="width:16px; height:16px; border-radius:50%; background:#ef4444; cursor:pointer; border:1px solid transparent;"></div>
             <div class="color-dot orange ${t.color === 'orange' ? 'selected' : ''}" onclick="updateTxn(${t.id},'color','orange')" title="สีส้ม" style="width:16px; height:16px; border-radius:50%; background:#f97316; cursor:pointer; border:1px solid transparent;"></div>
             <div class="color-dot yellow ${t.color === 'yellow' ? 'selected' : ''}" onclick="updateTxn(${t.id},'color','yellow')" title="สีเหลือง" style="width:16px; height:16px; border-radius:50%; background:#eab308; cursor:pointer; border:1px solid transparent;"></div>
@@ -3145,42 +3159,37 @@
 
       let dates = evs.map(e => e.date.getTime()); let minD = new Date(Math.min(...dates));
       let iy = minD.getFullYear(), im = minD.getMonth();
-      for (let i = 0; i < 60; i++) { evs.push({ date: new Date(iy + Math.floor((im + i) / 12), (im + i) % 12, 24), type: 'I', amt: 0, note: '' }); }
-      // BTA logic: W/D processed BEFORE I on same day — the 00:50 BTA snapshot
-      // captures transactions from the night before, so cut-off day (24th)
-      // interest uses the post-transaction balance as BTA ref.
-      const pri = { W: 0, D: 1, I: 2 }; evs.sort((a, b) => a.date - b.date || pri[a.type] - pri[b.type]);
+
+      // Monthly interest calculation event on the 24th of each month
+      for (let i = 0; i < 60; i++) {
+        let curY = iy + Math.floor((im + i) / 12);
+        let curM = (im + i) % 12;
+        evs.push({ date: new Date(curY, curM, 24), type: 'I', amt: 0, note: '' });
+      }
+
+      // Priority on the same date:
+      // W (withdrawals) processed first (pri: 0) — included in 24th balance
+      // I (interest cutoff) processed second (pri: 1) — calculates accrued interest up to 24th
+      // D (deposits) processed third (pri: 2) — applies payment/deduction after cut-off
+      const pri = { W: 0, I: 1, D: 2 };
+      evs.sort((a, b) => a.date - b.date || pri[a.type] - pri[b.type]);
 
       const txnDates = new Set(
         evs.filter(e => e.type === 'W' || e.type === 'D')
            .map(e => e.date.getTime())
       );
 
-      let debt = 0, lastDate = null, pendingSegs = [], btaInterestOffset = 0;
+      let debt = 0, lastDate = null, pendingSegs = [], pendingInterest = 0;
       let rows = [], totalInt = 0, totalDep = 0, totalWith = 0; let closedDate = null, done = false;
 
-      // inclusive=true → count end date (for interest day 24th)
+      // inclusive=true → count end date (for interest cut-off on 24th)
       // inclusive=false → exclude end date (for W/D transactions, avoids double-counting)
       function closeSeg(toDate, inclusive) {
         if (lastDate && toDate >= lastDate && debt > 0) { // >= allows 1-day segment on cut-off after same-day txn
           let days = dbDiff(lastDate, toDate) + (inclusive ? 1 : 0);
           let displayTo = inclusive ? toDate : new Date(toDate.getTime() - 86400000);
           if (days > 0) {
-            if (btaInterestOffset > 0) {
-              // BTA Day 1: first day of billing cycle uses debt - previous interest
-              let btaDebt = Math.round((debt - btaInterestOffset) * 100) / 100;
-              if (days === 1) {
-                pendingSegs.push({ from: lastDate, to: displayTo, debt: btaDebt, days: 1 });
-              } else {
-                // Split: Day 1 at BTA-adjusted, remaining at full debt
-                pendingSegs.push({ from: lastDate, to: lastDate, debt: btaDebt, days: 1 });
-                let nextDay = new Date(lastDate.getTime() + 86400000);
-                pendingSegs.push({ from: nextDay, to: displayTo, debt: Math.round(debt * 100) / 100, days: days - 1 });
-              }
-              btaInterestOffset = 0;
-            } else {
-              pendingSegs.push({ from: lastDate, to: displayTo, debt: Math.round(debt * 100) / 100, days: days });
-            }
+            pendingSegs.push({ from: lastDate, to: displayTo, debt: Math.round(debt * 100) / 100, days: days });
           }
         }
       }
@@ -3195,23 +3204,51 @@
           for (let s of pendingSegs) { s.intAmt = s.debt * RATE * s.days / 365; intSum += s.intAmt; } // BTA logic: always ÷365
           let rawIntSum = intSum;
           intSum = Math.round(intSum * 100) / 100; let segs = [...pendingSegs]; pendingSegs = [];
-          if (debt > 0 || segs.length > 0) { debt = Math.round((debt + intSum) * 100) / 100; totalInt += intSum; rows.push({ date: ed, type: 'I', dep: 0, wit: 0, bal: debt, segs, intAmt: intSum, rawIntAmt: rawIntSum }); btaInterestOffset = txnDates.has(ed.getTime()) ? 0 : intSum; }
+          if (debt > 0 || segs.length > 0) {
+            totalInt += intSum;
+            pendingInterest = Math.round((pendingInterest + intSum) * 100) / 100;
+            // The balance on the 24th interest calculation does NOT sum the interest (+0)
+            rows.push({ date: ed, type: 'I', dep: 0, wit: 0, bal: debt, segs, intAmt: intSum, rawIntAmt: rawIntSum });
+          }
         } else if (ev.type === 'W') {
           closeSeg(ed, false); debt = Math.round((debt + ev.amt) * 100) / 100; totalWith += ev.amt;
           rows.push({ date: ed, type: 'W', dep: 0, wit: ev.amt, bal: debt, segs: [], intAmt: null, note: ev.note, color: ev.color });
           lastDate = (lastDate && lastDate > ed) ? lastDate : ed; // Never go backwards
         } else if (ev.type === 'D') {
-          if (debt <= 0) {
+          if (debt <= 0 && pendingInterest <= 0) {
             totalDep += ev.amt;
             rows.push({ date: ed, type: 'D', dep: ev.amt, wit: 0, bal: 0, segs: [], intAmt: null, note: ev.note, color: ev.color });
             lastDate = (lastDate && lastDate > ed) ? lastDate : ed;
             continue;
           }
-          closeSeg(ed, false); let dep = ev.amt;
-          if (dep >= debt) { dep = Math.round(debt * 100) / 100; debt = 0; totalDep += dep; rows.push({ date: ed, type: 'F', dep, wit: 0, bal: 0, segs: [], intAmt: null, note: ev.note, color: ev.color }); closedDate = ed; done = true; }
-          else { debt = Math.round((debt - dep) * 100) / 100; totalDep += dep; rows.push({ date: ed, type: 'D', dep, wit: 0, bal: debt, segs: [], intAmt: null, note: ev.note, color: ev.color }); lastDate = (lastDate && lastDate > ed) ? lastDate : ed; }
+          closeSeg(ed, false);
+          let dep = ev.amt;
+          totalDep += dep;
+
+          // Deduct 24th interest first on deposit date
+          let intPaid = 0;
+          if (pendingInterest > 0) {
+            intPaid = Math.min(dep, pendingInterest);
+            pendingInterest = Math.round((pendingInterest - intPaid) * 100) / 100;
+          }
+          let principalReduction = Math.round((dep - intPaid) * 100) / 100;
+
+          if (principalReduction >= debt && pendingInterest === 0) {
+            debt = 0;
+            rows.push({ date: ed, type: 'F', dep, wit: 0, bal: 0, segs: [], intAmt: null, note: ev.note, color: ev.color });
+            closedDate = ed;
+            done = true;
+          } else {
+            debt = Math.round((debt - principalReduction) * 100) / 100;
+            rows.push({ date: ed, type: 'D', dep, wit: 0, bal: debt, segs: [], intAmt: null, note: ev.note, color: ev.color });
+            lastDate = (lastDate && lastDate > ed) ? lastDate : ed;
+          }
         }
       }
+
+      // Sort rows chronologically for display in the table
+      const rowPri = { W: 0, I: 1, D: 2, F: 3 };
+      rows.sort((a, b) => a.date - b.date || rowPri[a.type] - rowPri[b.type]);
       renderTable(rows, totalInt, totalDep, totalWith, closedDate, RATE);
     }
 
