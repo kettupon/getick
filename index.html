@@ -526,6 +526,28 @@
         const [isClipboardModalOpen, setIsClipboardModalOpen] = useState(false);
         const [editingClipboard, setEditingClipboard] = useState(null);
         const clipboardInputRef = useRef(null);
+        const lastStageTap = useRef({ status: null, time: 0 });
+
+        const handleStageTap = (status) => {
+            if (status !== 'doing' && status !== 'complete') return;
+            const now = Date.now();
+            const previous = lastStageTap.current;
+            if (previous.status !== status || now - previous.time > 400) {
+                lastStageTap.current = { status, time: now };
+                return;
+            }
+            lastStageTap.current = { status: null, time: 0 };
+            if (status === 'doing') {
+                window.switchApp('billget');
+            } else {
+                const pwd = prompt("Enter password for Media Gallery:");
+                if (pwd === 'media') {
+                    setViewMode('media');
+                } else if (pwd !== null) {
+                    alert("Incorrect password!");
+                }
+            }
+        };
 
         const [uploading, setUploading] = useState(false);
         const [uploadProgressList, setUploadProgressList] = useState([]);
@@ -767,42 +789,12 @@
                     </div>
                     
                     <div className="flex flex-wrap gap-4 w-full md:w-auto justify-center">
-                        {/* New Button to switch to BILLGET App */}
-                        <BrutalButton 
-                            onClick={() => window.switchApp('billget')} 
-                            color="bg-orange-400" 
-                            icon={() => <i className="fas fa-file-invoice" />}
-                            className="flex-grow md:flex-grow-0"
-                            title="Go to BILLGET app"
-                        >
-                            BILLGET APP
-                        </BrutalButton>
-
                         <BrutalButton 
                             onClick={() => setViewMode(viewMode === 'board' ? 'archive' : 'board')} 
                             color={viewMode === 'archive' ? 'bg-yellow-400' : 'bg-gray-200'}
                             icon={viewMode === 'board' ? IconArchive : IconLeft}
                         >
                             {viewMode === 'board' ? 'Archive' : 'Board'}
-                        </BrutalButton>
-
-                        <BrutalButton
-                            onClick={() => {
-                                if (viewMode === 'media') {
-                                    setViewMode('board');
-                                } else {
-                                    const pwd = prompt("Enter password for Media Gallery:");
-                                    if (pwd === 'media') {
-                                        setViewMode('media');
-                                    } else if (pwd !== null) {
-                                        alert("Incorrect password!");
-                                    }
-                                }
-                            }}
-                            color={viewMode === 'media' ? 'bg-cyan-400' : 'bg-gray-200'}
-                            icon={IconImage}
-                        >
-                            Media
                         </BrutalButton>
 
                         <BrutalButton
@@ -829,7 +821,13 @@
                             return (
                                 <div key={status} className="flex flex-col gap-4">
                                     <div className={`${stage.color} border-4 border-black p-4 brutal-shadow-lg flex items-center justify-between sticky top-2 z-10`}>
-                                        <h2 className={`text-xl md:text-2xl font-black uppercase flex items-center gap-3 ${stage.textColor}`}><Icon /> {stage.label}</h2>
+                                        <h2 className={`text-xl md:text-2xl font-black uppercase ${stage.textColor}`}>
+                                            {status === 'report' ? <span className="flex items-center gap-3"><Icon /> {stage.label}</span> : (
+                                                <button type="button" onClick={() => handleStageTap(status)} className="flex items-center gap-3 font-inherit text-inherit uppercase select-none" style={{ touchAction: 'manipulation' }}>
+                                                    <Icon /> {stage.label}
+                                                </button>
+                                            )}
+                                        </h2>
                                         <span className="bg-black text-white px-3 py-1 font-bold border-2 border-white">{stageTickets.length}</span>
                                     </div>
                                     <div className="flex flex-col gap-6 pb-12">
