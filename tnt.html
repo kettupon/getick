@@ -1590,6 +1590,45 @@
       box-shadow: 0 0 0 2px var(--accent-light);
     }
 
+    .input-clear-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
+
+    .input-clear-wrapper input {
+      padding-right: 46px !important;
+    }
+
+    .btn-input-clear {
+      position: absolute;
+      right: 22px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 18px;
+      height: 18px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text3);
+      border-radius: 50%;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      line-height: 1;
+      padding: 0;
+      transition: all 0.15s ease;
+      z-index: 2;
+    }
+
+    .btn-input-clear:hover {
+      background: var(--danger-light);
+      border-color: #f5c2c7;
+      color: var(--danger);
+    }
+
     .add-txn-modal .date-lock-notice {
       display: flex;
       align-items: center;
@@ -2119,7 +2158,10 @@
         <div style="display:flex; gap:8px;">
           <div style="flex:1;">
             <div style="font-size:11px; color:var(--text2); margin-bottom:4px;">จำนวนเงิน</div>
-            <input class="rec-input" id="rec-amt" type="number" inputmode="decimal" value="5000" min="0" step="100">
+            <div class="input-clear-wrapper">
+              <input class="rec-input" id="rec-amt" type="number" inputmode="decimal" value="5000" min="0" step="100">
+              <button type="button" class="btn-input-clear" onclick="clearRecAmount()" title="ล้างค่า" aria-label="ล้างค่า">✕</button>
+            </div>
           </div>
           <div style="flex:1;">
             <div style="font-size:11px; color:var(--text2); margin-bottom:4px;">ทำทุกวันที่</div>
@@ -2287,7 +2329,10 @@
       </div>
       <div class="field-group">
         <label>จำนวนเงิน (บาท)</label>
-        <input type="number" id="add-txn-amount" inputmode="decimal" min="0" step="100" placeholder="กรอกจำนวนเงิน" oninput="updateAddTxnPreview()">
+        <div class="input-clear-wrapper">
+          <input type="number" id="add-txn-amount" inputmode="decimal" min="0" step="100" placeholder="กรอกจำนวนเงิน" oninput="updateAddTxnPreview()">
+          <button type="button" class="btn-input-clear" onclick="clearAddTxnAmount()" title="ล้างค่า" aria-label="ล้างค่า">✕</button>
+        </div>
       </div>
       <div class="field-group">
         <label>หมายเหตุ (ไม่จำเป็น)</label>
@@ -3300,6 +3345,23 @@
       } else {
         document.getElementById('preview-amount').textContent = '—';
         document.getElementById('preview-amount').style.color = '';
+      }
+    }
+
+    function clearAddTxnAmount() {
+      const el = document.getElementById('add-txn-amount');
+      if (el) {
+        el.value = '';
+        el.focus();
+        updateAddTxnPreview();
+      }
+    }
+
+    function clearRecAmount() {
+      const el = document.getElementById('rec-amt');
+      if (el) {
+        el.value = '';
+        el.focus();
       }
     }
 
